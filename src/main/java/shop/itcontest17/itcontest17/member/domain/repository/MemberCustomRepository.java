@@ -1,5 +1,8 @@
 package shop.itcontest17.itcontest17.member.domain.repository;
 
+import java.util.List;
+import shop.itcontest17.itcontest17.member.domain.Member;
+
 public interface MemberCustomRepository {
-//    boolean existsByNicknameAndNotId(String nickname, Long id);
+    List<Member> findTop10ByStreak();
 }

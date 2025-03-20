@@ -1,13 +1,8 @@
 package shop.itcontest17.itcontest17.member.domain;
 
-import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.OneToOne;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -36,9 +31,6 @@ public class Member extends BaseEntity {
     private String introduction = "";
 
     private Integer streak = 0;
-
-//    @OneToOne(mappedBy = "member", cascade = CascadeType.ALL, orphanRemoval = true)
-//    private Ranking ranking;
 
     @Builder
     private Member(Status status,

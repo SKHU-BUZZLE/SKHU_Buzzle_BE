@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import shop.itcontest17.itcontest17.global.annotation.CurrentUserEmail;
+import shop.itcontest17.itcontest17.global.template.RspTemplate;
 import shop.itcontest17.itcontest17.quiz.api.dto.request.QuizReqDto;
 import shop.itcontest17.itcontest17.quiz.api.dto.response.QuizDto;
 import shop.itcontest17.itcontest17.quiz.application.QuizService;
@@ -34,9 +35,9 @@ public class QuizController {
                     content = @Content(schema = @Schema(example = "INVALID_HEADER or INVALID_TOKEN")))
     })
     @PostMapping
-    public ResponseEntity<QuizDto> advice(@CurrentUserEmail String email
-    , @RequestBody QuizReqDto quizReqDto) {
-        return new ResponseEntity<>(quizService.askForAdvice(email, quizReqDto), HttpStatus.OK);
+    public RspTemplate<QuizDto> advice(@CurrentUserEmail String email
+            , @RequestBody QuizReqDto quizReqDto) {
+        return new RspTemplate<>(HttpStatus.OK, "퀴즈 생성 완료", quizService.askForAdvice(email, quizReqDto));
     }
 
     @Operation(summary = "정답 선택 시 true 반환", description = "정답 선택 시 true를 반환합니다.")
@@ -47,8 +48,8 @@ public class QuizController {
                     content = @Content(schema = @Schema(example = "INVALID_HEADER or INVALID_TOKEN")))
     })
     @PostMapping("/correct-answer")
-    public ResponseEntity<Boolean> chooseCorrectAnswer(@CurrentUserEmail String email) {
-        return new ResponseEntity<>(quizService.chooseTheCorrectAnswer(email), HttpStatus.OK);
+    public RspTemplate<Boolean> chooseCorrectAnswer(@CurrentUserEmail String email) {
+        return new RspTemplate<>(HttpStatus.OK, "정답 선택 완료", quizService.chooseTheCorrectAnswer(email));
     }
 
     @Operation(summary = "오답 선택 시 false 반환", description = "오답 선택 시 false를 반환합니다.")
@@ -59,7 +60,7 @@ public class QuizController {
                     content = @Content(schema = @Schema(example = "INVALID_HEADER or INVALID_TOKEN")))
     })
     @GetMapping("/incorrect-answer")
-    public ResponseEntity<Boolean> chooseIncorrectAnswer() {
-        return new ResponseEntity<>(quizService.chooseTheIncorrectAnswer(), HttpStatus.OK);
+    public RspTemplate<Boolean> chooseIncorrectAnswer() {
+        return new RspTemplate<>(HttpStatus.OK, "오답 선택 완료", quizService.chooseTheIncorrectAnswer());
     }
 }
