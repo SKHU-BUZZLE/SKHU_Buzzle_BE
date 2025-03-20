@@ -35,6 +35,8 @@ public class Member extends BaseEntity {
 
     private String introduction = "";
 
+    private Integer streak = 0;
+
 //    @OneToOne(mappedBy = "member", cascade = CascadeType.ALL, orphanRemoval = true)
 //    private Ranking ranking;
 
@@ -52,5 +54,9 @@ public class Member extends BaseEntity {
         this.socialType = socialType;
         this.introduction = introduction;
         this.nickname = email.split("@")[0];
+    }
+
+    public void incrementStreak() {
+        this.streak++;
     }
 }
