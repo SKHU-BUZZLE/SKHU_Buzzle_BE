@@ -6,7 +6,7 @@ import lombok.Getter;
 
 @Getter
 @Builder
-public class QuizDto {
+public class QuizResDto {
     private String question;
     private String option1;
     private String option2;
@@ -15,8 +15,8 @@ public class QuizDto {
     private String answer;
     private LocalDateTime nowTime;
 
-    public static QuizDto of(String question, String option1, String option2, String option3, String option4, String answer) {
-        return QuizDto.builder()
+    public static QuizResDto of(String question, String option1, String option2, String option3, String option4, String answer) {
+        return QuizResDto.builder()
                 .question(question)
                 .option1(option1)
                 .option2(option2)

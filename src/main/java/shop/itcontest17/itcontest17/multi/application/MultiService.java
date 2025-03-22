@@ -24,6 +24,7 @@ public class MultiService {
     private final Queue<Member> waitingQueue = new ConcurrentLinkedQueue<>();
     private final Map<String, CompletableFuture<MultiResDto>> waitingUsers = new HashMap<>();
 
+    // 퀴즈 10개도 동시에 반환해주기. 기다리는 게 아니고 어떻게 처리할지 생각하기.
     public CompletableFuture<MultiResDto> addToQueue(String email) {
         CompletableFuture<MultiResDto> future = new CompletableFuture<>();
         Member member = memberRepository.findByEmail(email).orElseThrow(MemberNotFoundException::new);

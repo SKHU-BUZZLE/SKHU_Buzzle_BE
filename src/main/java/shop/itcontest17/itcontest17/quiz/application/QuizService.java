@@ -16,7 +16,8 @@ import shop.itcontest17.itcontest17.member.domain.repository.MemberRepository;
 import shop.itcontest17.itcontest17.member.exception.MemberNotFoundException;
 import shop.itcontest17.itcontest17.quiz.api.dto.request.QuizReqDto;
 import shop.itcontest17.itcontest17.quiz.api.dto.request.QuizSizeReqDto;
-import shop.itcontest17.itcontest17.quiz.api.dto.response.QuizDto;
+import shop.itcontest17.itcontest17.quiz.api.dto.response.QuizResDto;
+import shop.itcontest17.itcontest17.quiz.api.dto.response.QuizResListDto;
 import shop.itcontest17.itcontest17.quiz.domain.QuizCategory;
 import shop.itcontest17.itcontest17.quiz.domain.QuizScore;
 
@@ -43,7 +44,7 @@ public class QuizService {
     private String allQuestions;
 
     @Transactional
-    public QuizDto askForAdvice(String email, QuizReqDto quizReqDto) {
+    public QuizResDto askForAdvice(String email, QuizReqDto quizReqDto) {
         Member member = memberRepository.findByEmail(email).orElseThrow(MemberNotFoundException::new);
 
         String selectedQuestions = switch (QuizCategory.valueOf(quizReqDto.category().name())) {
@@ -65,7 +66,7 @@ public class QuizService {
 
     // 10개 퀴즈 만들기
     @Transactional
-    public List<QuizDto> askForAdvice(String email, QuizSizeReqDto quizSizeReqDto) {
+    public QuizResListDto askForAdvice(String email, QuizSizeReqDto quizSizeReqDto) {
         Member member = memberRepository.findByEmail(email).orElseThrow(MemberNotFoundException::new);
 
         String selectedQuestions = switch (QuizCategory.valueOf(quizSizeReqDto.category().name())) {
@@ -77,7 +78,7 @@ public class QuizService {
             default -> throw new IllegalArgumentException("Invalid category");
         };
 
-        List<QuizDto> quizList = new ArrayList<>();
+        List<QuizResDto> quizList = new ArrayList<>();
 
         for (int i = 0; i < quizSizeReqDto.size(); i++) {
             ChatResponse response = callChat(selectedQuestions);
@@ -87,7 +88,7 @@ public class QuizService {
             quizList.add(parseQuiz(response.getResult().getOutput().getContent()));
         }
 
-        return quizList;
+        return QuizResListDto.from(quizList);
     }
 
     private ChatResponse callChat(String prompt) {
@@ -102,7 +103,7 @@ public class QuizService {
                 ));
     }
 
-    private QuizDto parseQuiz(String quizText) {
+    private QuizResDto parseQuiz(String quizText) {
         // 문자열을 줄바꿈으로 분리
         String[] lines = quizText.split("\n");
 
@@ -118,7 +119,7 @@ public class QuizService {
                 : (lines.length > 7 ? lines[7].replace("정답: ", "").trim() : "");
         System.out.println(Arrays.stream(lines).toList());
         // DTO 생성 및 반환
-        return QuizDto.of(question, option1, option2, option3, option4, answer);
+        return QuizResDto.of(question, option1, option2, option3, option4, answer);
     }
 
     @Transactional
