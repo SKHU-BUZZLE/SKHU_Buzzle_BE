@@ -1,7 +1,6 @@
 package shop.itcontest17.itcontest17.multi.api;
 
 import java.util.Objects;
-import javax.print.MultiDocPrintService;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
@@ -39,7 +38,6 @@ public class MultiController {
         public MatchResponse(String roomId) {
             this.roomId = roomId;
         }
-
     }
 }
 
