@@ -8,6 +8,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import shop.itcontest17.itcontest17.global.entity.BaseEntity;
 import shop.itcontest17.itcontest17.global.entity.Status;
+import shop.itcontest17.itcontest17.quiz.domain.QuizScore;
 
 @Entity
 @Getter
@@ -50,8 +51,8 @@ public class Member extends BaseEntity {
         this.nickname = email.split("@")[0];
     }
 
-    public void incrementStreak() {
-        this.streak++;
+    public void incrementStreak(int score) {
+        this.streak += score;
     }
 
     public void decrementLife() {
