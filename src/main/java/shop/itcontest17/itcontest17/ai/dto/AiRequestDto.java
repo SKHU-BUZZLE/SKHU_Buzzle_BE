@@ -1,4 +1,4 @@
-package shop.itcontest17.itcontest17.auth.ai.dto;
+package shop.itcontest17.itcontest17.ai.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;

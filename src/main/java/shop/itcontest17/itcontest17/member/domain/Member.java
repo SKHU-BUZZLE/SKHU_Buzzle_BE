@@ -32,6 +32,8 @@ public class Member extends BaseEntity {
 
     private Integer streak = 0;
 
+    private Integer life = 5;
+
     @Builder
     private Member(Status status,
                    String email, String name,
@@ -50,5 +52,9 @@ public class Member extends BaseEntity {
 
     public void incrementStreak() {
         this.streak++;
+    }
+
+    public void decrementLife() {
+        this.life--;
     }
 }

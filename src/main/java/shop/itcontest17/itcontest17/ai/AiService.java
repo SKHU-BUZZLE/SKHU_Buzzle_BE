@@ -1,4 +1,4 @@
-package shop.itcontest17.itcontest17.auth.ai;
+package shop.itcontest17.itcontest17.ai;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.chat.ChatClient;
@@ -7,7 +7,7 @@ import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import shop.itcontest17.itcontest17.auth.ai.dto.AiResponseDto;
+import shop.itcontest17.itcontest17.ai.dto.AiResponseDto;
 
 @Service
 @RequiredArgsConstructor

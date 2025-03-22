@@ -1,6 +1,8 @@
 package shop.itcontest17.itcontest17.quiz.application;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.chat.ChatClient;
 import org.springframework.ai.chat.ChatResponse;
@@ -13,6 +15,7 @@ import shop.itcontest17.itcontest17.member.domain.Member;
 import shop.itcontest17.itcontest17.member.domain.repository.MemberRepository;
 import shop.itcontest17.itcontest17.member.exception.MemberNotFoundException;
 import shop.itcontest17.itcontest17.quiz.api.dto.request.QuizReqDto;
+import shop.itcontest17.itcontest17.quiz.api.dto.request.QuizSizeReqDto;
 import shop.itcontest17.itcontest17.quiz.api.dto.response.QuizDto;
 import shop.itcontest17.itcontest17.quiz.domain.QuizCategory;
 
@@ -59,6 +62,33 @@ public class QuizService {
         return parseQuiz(response.getResult().getOutput().getContent());
     }
 
+    // 10개 퀴즈 만들기
+    @Transactional
+    public List<QuizDto> askForAdvice(String email, QuizSizeReqDto quizSizeReqDto) {
+        Member member = memberRepository.findByEmail(email).orElseThrow(MemberNotFoundException::new);
+
+        String selectedQuestions = switch (QuizCategory.valueOf(quizSizeReqDto.category().name())) {
+            case HISTORY -> historyQuestions;
+            case FOUR_IDIOMS -> fouridiomsQuestions;
+            case CAPITAL -> capitalQuestions;
+            case SCIENCE -> scienceQuestions;
+            case ALL -> allQuestions;
+            default -> throw new IllegalArgumentException("Invalid category");
+        };
+
+        List<QuizDto> quizList = new ArrayList<>();
+
+        for (int i = 0; i < quizSizeReqDto.size(); i++) {
+            ChatResponse response = callChat(selectedQuestions);
+            if (response == null) {
+                response = callChat(selectedQuestions);
+            }
+            quizList.add(parseQuiz(response.getResult().getOutput().getContent()));
+        }
+
+        return quizList;
+    }
+
     private ChatResponse callChat(String prompt) {
         return chatClient.call(
                 new Prompt(
@@ -99,7 +129,12 @@ public class QuizService {
         return true;
     }
 
-    public boolean chooseTheIncorrectAnswer() {
-        return false;
+    @Transactional
+    public boolean chooseTheIncorrectAnswer(String email) {
+        Member member = memberRepository.findByEmail(email).orElseThrow(MemberNotFoundException::new);
+
+        member.decrementLife();
+
+        return true;
     }
 }
