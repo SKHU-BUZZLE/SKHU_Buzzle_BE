@@ -41,9 +41,9 @@ public class MultiController {
             @ApiResponse(responseCode = "401", description = "헤더 없음 or 토큰 불일치",
                     content = @Content(schema = @Schema(example = "INVALID_HEADER or INVALID_TOKEN")))
     })
-    @PostMapping("/correct-answer")
-    public RspTemplate<Boolean> winner(WinnerResDto winnerResDto) {
-        return new RspTemplate<>(HttpStatus.OK, "승자 점수 처리 완료", multiService.winnerProcessing(winnerResDto.name()));
+    @PostMapping("/end")
+    public RspTemplate<Boolean> winner(@RequestBody WinnerResDto winnerResDto) {
+        return new RspTemplate<>(HttpStatus.OK, "승자 점수 처리 완료", multiService.winnerProcessing(winnerResDto.email()));
     }
 }
 

@@ -29,7 +29,7 @@ public class MultiService {
         Member member = memberRepository.findByEmail(email).orElseThrow(MemberNotFoundException::new);
 
         // 사용자 대기열에 추가
-        waitingUsers.put(member.getName(), future);
+        waitingUsers.put(member.getEmail(), future);
         waitingQueue.add(member);
 
         // 두 명이 모이면 매칭 실행
@@ -40,16 +40,16 @@ public class MultiService {
             String roomId = createRoomId();
 
             // 매칭된 상대방 이름 설정
-            MultiResDto resultForUser1 = new MultiResDto(roomId, user1.getName());
-            MultiResDto resultForUser2 = new MultiResDto(roomId, user2.getName());
+            MultiResDto resultForUser1 = new MultiResDto(roomId, user1.getEmail());
+            MultiResDto resultForUser2 = new MultiResDto(roomId, user2.getEmail());
 
             // 매칭된 사용자에게 결과 반환
-            waitingUsers.get(user1.getName()).complete(resultForUser1);
-            waitingUsers.get(user2.getName()).complete(resultForUser2);
+            waitingUsers.get(user1.getEmail()).complete(resultForUser1);
+            waitingUsers.get(user2.getEmail()).complete(resultForUser2);
 
             // 매칭 완료 후 상태 정리
-            waitingUsers.remove(user1.getName());
-            waitingUsers.remove(user2.getName());
+            waitingUsers.remove(user1.getEmail());
+            waitingUsers.remove(user2.getEmail());
         }
 
         return future;
@@ -60,8 +60,8 @@ public class MultiService {
     }
 
     @Transactional
-    public boolean winnerProcessing(String name) {
-        Member member = memberRepository.findByName(name).orElseThrow(MemberNotFoundException::new);
+    public boolean winnerProcessing(String email) {
+        Member member = memberRepository.findByEmail(email).orElseThrow(MemberNotFoundException::new);
 
         member.incrementStreak(QuizScore.MULTI_SCORE.getScore());
 
