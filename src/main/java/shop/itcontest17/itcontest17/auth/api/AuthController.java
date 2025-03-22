@@ -32,19 +32,12 @@ import shop.itcontest17.itcontest17.member.domain.SocialType;
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
-public class AuthController {
+public class AuthController implements AuthDocs{
 
     private final AuthServiceFactory authServiceFactory;
     private final AuthMemberService memberService;
     private final TokenService tokenService;
 
-    @Operation(summary = "ID 토큰 반환", description = "ID 토큰을 반환합니다.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "ID 토큰 반환 성공"),
-            @ApiResponse(responseCode = "400", description = "잘못된 요청 값"),
-            @ApiResponse(responseCode = "401", description = "헤더 없음 or 토큰 불일치",
-                    content = @Content(schema = @Schema(example = "INVALID_HEADER or INVALID_TOKEN")))
-    })
     @GetMapping("oauth2/callback/{provider}")
     public IdTokenResDto callback(@PathVariable(name = "provider") String provider,
                                   @RequestParam(name = "code") String code) {
@@ -52,13 +45,6 @@ public class AuthController {
         return authService.getIdToken(code);
     }
 
-    @Operation(summary = "회원가입과 동시에 access 토큰, refresh 토큰 반환", description = "access 토큰, refresh 토큰을 반환합니다.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "access 토큰, refresh 토큰 반환 성공"),
-            @ApiResponse(responseCode = "400", description = "잘못된 요청 값"),
-            @ApiResponse(responseCode = "401", description = "헤더 없음 or 토큰 불일치",
-                    content = @Content(schema = @Schema(example = "INVALID_HEADER or INVALID_TOKEN")))
-    })
     @PostMapping("/{provider}/token")
     public RspTemplate<TokenDto> generateAccessAndRefreshToken(
             @PathVariable(name = "provider") String provider,
@@ -73,13 +59,6 @@ public class AuthController {
         return new RspTemplate<>(HttpStatus.OK, "토큰 발급", getToken);
     }
 
-    @Operation(summary = "refresh 토큰으로 access 토큰 재발급", description = "refresh 토큰으로 access 토큰 재발급합니다.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "refresh 토큰으로 access 토큰 재발급 성공"),
-            @ApiResponse(responseCode = "400", description = "잘못된 요청 값"),
-            @ApiResponse(responseCode = "401", description = "헤더 없음 or 토큰 불일치",
-                    content = @Content(schema = @Schema(example = "INVALID_HEADER or INVALID_TOKEN")))
-    })
     @PostMapping("/token/access")
     public RspTemplate<TokenDto> generateAccessToken(@RequestBody RefreshTokenReqDto refreshTokenReqDto) {
         TokenDto getToken = tokenService.generateAccessToken(refreshTokenReqDto);
