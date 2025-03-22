@@ -35,6 +35,9 @@ public class QuizService {
     @Value("${questions.science}")
     private String scienceQuestions;
 
+    @Value("${questions.all}")
+    private String allQuestions;
+
     @Transactional
     public QuizDto askForAdvice(String email, QuizReqDto quizReqDto) {
         Member member = memberRepository.findByEmail(email).orElseThrow(MemberNotFoundException::new);
@@ -44,6 +47,7 @@ public class QuizService {
             case FOUR_IDIOMS -> fouridiomsQuestions;
             case CAPITAL -> capitalQuestions;
             case SCIENCE -> scienceQuestions;
+            case ALL -> allQuestions;
             default -> throw new IllegalArgumentException("Invalid category");
         };
 
