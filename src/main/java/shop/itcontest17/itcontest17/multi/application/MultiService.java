@@ -1,6 +1,7 @@
 package shop.itcontest17.itcontest17.multi.application;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import lombok.RequiredArgsConstructor;
@@ -14,12 +15,18 @@ import shop.itcontest17.itcontest17.member.domain.Member;
 import shop.itcontest17.itcontest17.member.domain.repository.MemberRepository;
 import shop.itcontest17.itcontest17.member.exception.MemberNotFoundException;
 import shop.itcontest17.itcontest17.multi.api.dto.response.MultiResDto;
+import shop.itcontest17.itcontest17.quiz.api.dto.request.QuizSizeReqDto;
+import shop.itcontest17.itcontest17.quiz.api.dto.response.QuizResDto;
+import shop.itcontest17.itcontest17.quiz.api.dto.response.QuizResListDto;
+import shop.itcontest17.itcontest17.quiz.application.QuizService;
+import shop.itcontest17.itcontest17.quiz.domain.QuizCategory;
 import shop.itcontest17.itcontest17.quiz.domain.QuizScore;
 
 @Service
 @RequiredArgsConstructor
 public class MultiService {
 
+    private final QuizService quizService;
     private final MemberRepository memberRepository;
     private final Queue<Member> waitingQueue = new ConcurrentLinkedQueue<>();
     private final Map<String, CompletableFuture<MultiResDto>> waitingUsers = new HashMap<>();
@@ -40,21 +47,31 @@ public class MultiService {
 
             String roomId = createRoomId();
 
-            // 매칭된 상대방 이름 설정
-            MultiResDto resultForUser1 = new MultiResDto(roomId, user1.getEmail());
-            MultiResDto resultForUser2 = new MultiResDto(roomId, user2.getEmail());
+            QuizSizeReqDto quizSizeReqDto = new QuizSizeReqDto(QuizCategory.ALL, 3);
+            QuizResListDto quizList = quizService.askForAdvice(user1.getEmail(), quizSizeReqDto);
 
-            // 매칭된 사용자에게 결과 반환
+            MultiResDto resultForUser1 = MultiResDto.builder()
+                    .roomId(roomId)
+                    .email(user2.getEmail())
+                    .quizzes(quizList) // 퀴즈 포함
+                    .build();
+
+            MultiResDto resultForUser2 = MultiResDto.builder()
+                    .roomId(roomId)
+                    .email(user1.getEmail())
+                    .quizzes(quizList) // 퀴즈 포함
+                    .build();
+
             waitingUsers.get(user1.getEmail()).complete(resultForUser1);
             waitingUsers.get(user2.getEmail()).complete(resultForUser2);
 
-            // 매칭 완료 후 상태 정리
             waitingUsers.remove(user1.getEmail());
             waitingUsers.remove(user2.getEmail());
         }
 
         return future;
     }
+
 
     private String createRoomId() {
         return UUID.randomUUID().toString(); // 고유한 roomId 생성

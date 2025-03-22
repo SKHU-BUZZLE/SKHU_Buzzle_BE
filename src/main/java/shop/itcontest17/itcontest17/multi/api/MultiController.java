@@ -27,13 +27,6 @@ public class MultiController implements MultiDocs{
         return multiService.addToQueue(email);
     }
 
-    @Operation(summary = "1ㄷ1 맞짱 승자 처리", description = "1ㄷ1 맞짱 승자를 처리합니다")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "응답 생성을 성공했습니다"),
-            @ApiResponse(responseCode = "400", description = "잘못된 요청입니다"),
-            @ApiResponse(responseCode = "401", description = "헤더 없음 or 토큰 불일치",
-                    content = @Content(schema = @Schema(example = "INVALID_HEADER or INVALID_TOKEN")))
-    })
     @PostMapping("/end")
     public RspTemplate<Boolean> winner(@RequestBody WinnerResDto winnerResDto) {
         return new RspTemplate<>(HttpStatus.OK, "승자 점수 처리 완료", multiService.winnerProcessing(winnerResDto.email()));
