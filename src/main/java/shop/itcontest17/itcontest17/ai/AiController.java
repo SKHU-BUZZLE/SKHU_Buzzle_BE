@@ -1,4 +1,4 @@
-package shop.itcontest17.itcontest17.auth.ai;
+package shop.itcontest17.itcontest17.ai;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -10,7 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
-import shop.itcontest17.itcontest17.auth.ai.dto.AiResponseDto;
+import shop.itcontest17.itcontest17.ai.dto.AiResponseDto;
 
 @RestController
 @RequiredArgsConstructor
