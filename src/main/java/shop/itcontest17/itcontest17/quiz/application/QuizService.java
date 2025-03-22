@@ -18,6 +18,7 @@ import shop.itcontest17.itcontest17.quiz.api.dto.request.QuizReqDto;
 import shop.itcontest17.itcontest17.quiz.api.dto.request.QuizSizeReqDto;
 import shop.itcontest17.itcontest17.quiz.api.dto.response.QuizDto;
 import shop.itcontest17.itcontest17.quiz.domain.QuizCategory;
+import shop.itcontest17.itcontest17.quiz.domain.QuizScore;
 
 @Service
 @RequiredArgsConstructor
@@ -124,7 +125,7 @@ public class QuizService {
     public boolean chooseTheCorrectAnswer(String email) {
         Member member = memberRepository.findByEmail(email).orElseThrow(MemberNotFoundException::new);
 
-        member.incrementStreak();
+        member.incrementStreak(QuizScore.PERSONAL_SCORE.getScore());
 
         return true;
     }

@@ -14,6 +14,8 @@ public interface MemberRepository extends
         MemberCustomRepository {
     Optional<Member> findByEmail(String email);
 
+    Optional<Member> findByName(String name);
+
     @Modifying
     @Transactional
     @Query("UPDATE Member m SET m.life = 50")
