@@ -77,7 +77,7 @@ public class QuizController {
                     content = @Content(schema = @Schema(example = "INVALID_HEADER or INVALID_TOKEN")))
     })
     @GetMapping("/incorrect-answer")
-    public RspTemplate<Boolean> chooseIncorrectAnswer() {
-        return new RspTemplate<>(HttpStatus.OK, "오답 선택 완료", quizService.chooseTheIncorrectAnswer());
+    public RspTemplate<Boolean> chooseIncorrectAnswer(@CurrentUserEmail String email) {
+        return new RspTemplate<>(HttpStatus.OK, "오답 선택 완료", quizService.chooseTheIncorrectAnswer(email));
     }
 }

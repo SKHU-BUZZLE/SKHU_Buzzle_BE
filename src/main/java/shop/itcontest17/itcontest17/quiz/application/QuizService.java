@@ -129,7 +129,12 @@ public class QuizService {
         return true;
     }
 
-    public boolean chooseTheIncorrectAnswer() {
-        return false;
+    @Transactional
+    public boolean chooseTheIncorrectAnswer(String email) {
+        Member member = memberRepository.findByEmail(email).orElseThrow(MemberNotFoundException::new);
+
+        member.decrementLife();
+
+        return true;
     }
 }

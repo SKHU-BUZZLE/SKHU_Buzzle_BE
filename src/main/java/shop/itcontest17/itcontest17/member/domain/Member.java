@@ -53,4 +53,8 @@ public class Member extends BaseEntity {
     public void incrementStreak() {
         this.streak++;
     }
+
+    public void decrementLife() {
+        this.life--;
+    }
 }
