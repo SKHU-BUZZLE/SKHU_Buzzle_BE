@@ -44,25 +44,11 @@ public class QuizController implements QuizDocs{
                 quizService.askForAdvice(email, quizSizeReqDto));
     }
 
-    @Operation(summary = "정답 선택 시 true 반환", description = "정답 선택 시 true를 반환합니다.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "응답 생성을 성공했습니다"),
-            @ApiResponse(responseCode = "400", description = "잘못된 요청입니다"),
-            @ApiResponse(responseCode = "401", description = "헤더 없음 or 토큰 불일치",
-                    content = @Content(schema = @Schema(example = "INVALID_HEADER or INVALID_TOKEN")))
-    })
     @PostMapping("/correct-answer")
     public RspTemplate<Boolean> chooseCorrectAnswer(@CurrentUserEmail String email) {
         return new RspTemplate<>(HttpStatus.OK, "정답 선택 완료", quizService.chooseTheCorrectAnswer(email));
     }
 
-    @Operation(summary = "오답 선택 시 false 반환", description = "오답 선택 시 false를 반환합니다.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "응답 생성을 성공했습니다"),
-            @ApiResponse(responseCode = "400", description = "잘못된 요청입니다"),
-            @ApiResponse(responseCode = "401", description = "헤더 없음 or 토큰 불일치",
-                    content = @Content(schema = @Schema(example = "INVALID_HEADER or INVALID_TOKEN")))
-    })
     @GetMapping("/incorrect-answer")
     public RspTemplate<Boolean> chooseIncorrectAnswer(@CurrentUserEmail String email) {
         return new RspTemplate<>(HttpStatus.OK, "오답 선택 완료", quizService.chooseTheIncorrectAnswer(email));

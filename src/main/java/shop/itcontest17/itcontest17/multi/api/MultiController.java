@@ -18,17 +18,10 @@ import shop.itcontest17.itcontest17.multi.application.MultiService;
 @RequiredArgsConstructor
 @RestController
 @RequestMapping("/api/match")
-public class MultiController {
+public class MultiController implements MultiDocs{
 
     private final MultiService multiService;
 
-    @Operation(summary = "1ㄷ1 맞짱 대결 매칭 시작", description = "1ㄷ1 맞짱 대결 매칭 시작")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "응답 생성을 성공했습니다"),
-            @ApiResponse(responseCode = "400", description = "잘못된 요청입니다"),
-            @ApiResponse(responseCode = "401", description = "헤더 없음 or 토큰 불일치",
-                    content = @Content(schema = @Schema(example = "INVALID_HEADER or INVALID_TOKEN")))
-    })
     @PostMapping
     public CompletableFuture<MultiResDto> requestMatch(@CurrentUserEmail String email) {
         return multiService.addToQueue(email);
