@@ -33,4 +33,10 @@ public class MemberService {
 
         return new MemberLifeResDto(member.getLife());
     }
+
+    public MemberInfoResDto getMemberByEmail(String email) {
+        Member member = memberRepository.findByEmail(email).orElseThrow(MemberNotFoundException::new);
+
+        return MemberInfoResDto.from(member);
+    }
 }

@@ -34,6 +34,5 @@ public class NotificationController implements NotificationDocs {
         notificationService.send(email, targetMemberEmail);
 
         return new RspTemplate<>(HttpStatus.OK, "알림 전송 성공.");
-
     }
 }
