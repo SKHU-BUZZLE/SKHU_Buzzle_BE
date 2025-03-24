@@ -31,5 +31,12 @@ public class MultiController implements MultiDocs{
     public RspTemplate<Boolean> winner(@RequestBody WinnerResDto winnerResDto) {
         return new RspTemplate<>(HttpStatus.OK, "승자 점수 처리 완료", multiService.winnerProcessing(winnerResDto.email()));
     }
+
+    @PostMapping("/v2")
+    public CompletableFuture<MultiResDto> requestMatchV2(@CurrentUserEmail String email) {
+        return multiService.addToQueueV2(email);
+    }
+
+
 }
 
