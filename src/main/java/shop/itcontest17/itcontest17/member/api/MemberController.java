@@ -31,6 +31,6 @@ public class MemberController implements MemberDocs{
 
     @GetMapping("/my-page")
     public RspTemplate<MemberInfoResDto> getMyPage(@CurrentUserEmail String email) {
-        return new RspTemplate<>(HttpStatus.OK, "회원 life 조회 성공", memberService.getMemberByEmail(email));
+        return new RspTemplate<>(HttpStatus.OK, "회원 조회 성공", memberService.getMemberByEmail(email));
     }
 }
