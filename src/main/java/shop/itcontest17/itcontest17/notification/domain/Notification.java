@@ -12,6 +12,7 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.w3c.dom.Text;
 import shop.itcontest17.itcontest17.member.domain.Member;
 
 @Getter
@@ -28,6 +29,7 @@ public class Notification {
     @JoinColumn(name = "member_id")
     private Member receiver;
 
+    @Column(columnDefinition = "TEXT")
     private String message;
 
     @Column(nullable = false)

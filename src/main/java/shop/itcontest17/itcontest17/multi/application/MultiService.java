@@ -106,30 +106,30 @@ public class MultiService {
         scheduler.scheduleAtFixedRate(this::matchUsers, 0, 1, TimeUnit.SECONDS);
     }
 
-    // 🔥 사용자를 큐에 추가하고 매칭 시도
-    public CompletableFuture<MultiResDto> addToQueueV2(String email) {
-        CompletableFuture<MultiResDto> future = new CompletableFuture<>();
+    public String addToQueueV2(String email) {
         Member member = memberRepository.findByEmail(email)
                 .orElseThrow(MemberNotFoundException::new);
 
         lock.lock();
         try {
-            if (!waitingUsers.containsKey(member.getEmail())) {
-                waitingUsers.put(member.getEmail(), future);
+            if (!waitingQueue.contains(member)) {
                 waitingQueue.add(member);
+                System.out.println(member.getEmail() + "님 매칭 대기 중");
+                matchUsers(); // 매칭 시도
+                return "매칭 중";
+            } else {
+                return "이미 매칭 대기 중입니다.";
             }
         } finally {
             lock.unlock();
         }
-
-        return future;
     }
 
     // 🔥 매칭 로직 (타이머 기반 실행)
     private void matchUsers() {
         lock.lock(); // 동시성 문제 방지
         try {
-            while (waitingQueue.size() >= 2) {
+            if (waitingQueue.size() >= 2) {
                 Member user1 = waitingQueue.poll();
                 Member user2 = waitingQueue.poll();
 
@@ -158,17 +158,12 @@ public class MultiService {
                         .quizzes(quizList)
                         .build();
 
-                // 🔥 SSE로 실시간 초대 메시지 전송
-                notificationService.send(user1.getEmail(), resultForUser1.email());
-                notificationService.send(user2.getEmail(), resultForUser2.email());
+                String message = user1.getEmail() + " VS " + user2.getEmail() + "\n" + quizList.toString();
+                // 🔥 SSE로 실시간 매칭 성공 메시지 및 퀴즈 데이터 전송
+                notificationService.send(user1.getEmail(), message);
+                notificationService.send(user2.getEmail(), message);
 
-                // CompletableFuture 완료 처리
-                waitingUsers.get(user1.getEmail()).complete(resultForUser1);
-                waitingUsers.get(user2.getEmail()).complete(resultForUser2);
-
-                // 매칭 완료 후 사용자 제거
-                waitingUsers.remove(user1.getEmail());
-                waitingUsers.remove(user2.getEmail());
+                System.out.println("✅ 매칭 완료: " + user1.getEmail() + " ↔ " + user2.getEmail());
             }
         } finally {
             lock.unlock();
@@ -187,18 +182,15 @@ public class MultiService {
         }
     }
 
-    // 🔥 취소 처리 (큐와 CompletableFuture에서 제거)
-    public void cancelMatch(String email) {
+    // 🔥 취소 처리 (큐에서 제거만 진행)
+    public Void cancelMatch(String email) {
         lock.lock();
         try {
             waitingQueue.removeIf(member -> member.getEmail().equals(email));
-
-            CompletableFuture<MultiResDto> future = waitingUsers.remove(email);
-            if (future != null) {
-                future.cancel(true);
-            }
         } finally {
             lock.unlock();
         }
+
+        return null;
     }
 }

@@ -33,10 +33,14 @@ public class MultiController implements MultiDocs{
     }
 
     @PostMapping("/v2")
-    public CompletableFuture<MultiResDto> requestMatchV2(@CurrentUserEmail String email) {
-        return multiService.addToQueueV2(email);
+    public RspTemplate<String> requestMatchV2(@CurrentUserEmail String email) {
+        return new RspTemplate<>(HttpStatus.OK, multiService.addToQueueV2(email));
     }
 
+    @PostMapping("/cancel/v2")
+    public RspTemplate<Void> cancelMatchV2(@CurrentUserEmail String email) {
+        return new RspTemplate<>(HttpStatus.OK, "매칭 취소 완료", multiService.cancelMatch(email));
+    }
 
 }
 

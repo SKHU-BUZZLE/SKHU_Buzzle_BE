@@ -28,13 +28,9 @@ public class NotificationService {
     }
 
     @Transactional
-    public void send(String email, String targetMemberEmail) {
-        Member member = memberRepository.findByEmail(email)
-                .orElseThrow(MemberNotFoundException::new);
+    public void send(String targetMemberEmail, String message) {
         Member targetMember = memberRepository.findByEmail(targetMemberEmail)
                 .orElseThrow(MemberNotFoundException::new);
-
-        String message = member.getEmail() + "님과" + targetMember.getEmail() + "님이 매칭되었습니다.";
 
         notificationRepository.save(Notification.builder()
                 .receiver(targetMember)
