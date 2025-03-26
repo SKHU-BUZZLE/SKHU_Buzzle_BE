@@ -140,26 +140,8 @@ public class MultiService {
                     return;
                 }
 
-                String roomId = createRoomId();
+                String message = "roomId :" + createRoomId();
 
-                // 퀴즈 생성
-                QuizSizeReqDto quizSizeReqDto = new QuizSizeReqDto(QuizCategory.ALL, 3);
-                QuizResListDto quizList = quizService.askForAdvice(user1.getEmail(), quizSizeReqDto);
-
-                MultiResDto resultForUser1 = MultiResDto.builder()
-                        .roomId(roomId)
-                        .email(user2.getEmail())
-                        .quizzes(quizList)
-                        .build();
-
-                MultiResDto resultForUser2 = MultiResDto.builder()
-                        .roomId(roomId)
-                        .email(user1.getEmail())
-                        .quizzes(quizList)
-                        .build();
-
-                String message = user1.getEmail() + " VS " + user2.getEmail() + "\n" + quizList.toString();
-                // 🔥 SSE로 실시간 매칭 성공 메시지 및 퀴즈 데이터 전송
                 notificationService.send(user1.getEmail(), message);
                 notificationService.send(user2.getEmail(), message);
 
