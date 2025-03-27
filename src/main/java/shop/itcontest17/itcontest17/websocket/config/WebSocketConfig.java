@@ -1,5 +1,6 @@
 package shop.itcontest17.itcontest17.websocket.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.web.socket.config.annotation.*;
@@ -9,6 +10,12 @@ import shop.itcontest17.itcontest17.websocket.interceptor.WebsocketHandshakeInte
 @Configuration
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
+
+    private final String secretKey;
+
+    public WebSocketConfig(@Value("${jwt.secret}") String secretKey) {
+        this.secretKey = secretKey;
+    }
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
@@ -25,7 +32,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         registry.setErrorHandler(new StompSubProtocolErrorHandler())
                 .addEndpoint("/ws")
                 .setAllowedOriginPatterns("*")
-                .addInterceptors(new WebsocketHandshakeInterceptor())
+                .addInterceptors(new WebsocketHandshakeInterceptor(secretKey))
                 .withSockJS(); // SockJS fallback 지원
     }
 }
