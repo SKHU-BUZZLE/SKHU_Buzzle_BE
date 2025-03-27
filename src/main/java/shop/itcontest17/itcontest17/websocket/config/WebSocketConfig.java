@@ -30,7 +30,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         // 클라이언트가 WebSocket 연결을 시작하는 엔드포인트
         registry.setErrorHandler(new StompSubProtocolErrorHandler())
-                .addEndpoint("/ws")
+                .addEndpoint("/chat")
                 .setAllowedOriginPatterns("*")
                 .addInterceptors(new WebsocketHandshakeInterceptor(secretKey))
                 .withSockJS(); // SockJS fallback 지원

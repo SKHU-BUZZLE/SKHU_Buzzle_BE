@@ -24,6 +24,7 @@ public class WebSocketController {
         webSocketService.sendMessage(headerAccessor, roomId, message);
     }
 
+    // 유저가 보내는 메세지 가공.
     @MessageMapping("/game/{roomId}")
     @SendTo("/topic/game/{roomId}")
     public void processGameMessage(

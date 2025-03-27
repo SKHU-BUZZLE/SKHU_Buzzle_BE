@@ -22,7 +22,6 @@ public class WebsocketHandshakeInterceptor implements HandshakeInterceptor {
     private final Key key;
 
     public WebsocketHandshakeInterceptor(String secretKey) {
-        // ✅ TokenProvider와 동일한 방식으로 Hex 문자열 → byte[] 변환 후 Key 생성
         byte[] keyBytes = hexStringToByteArray(secretKey);
         this.key = Keys.hmacShaKeyFor(keyBytes);
     }
