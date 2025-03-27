@@ -21,7 +21,6 @@ import shop.itcontest17.itcontest17.member.domain.repository.MemberRepository;
 import shop.itcontest17.itcontest17.member.exception.MemberNotFoundException;
 import shop.itcontest17.itcontest17.multi.api.dto.response.MultiResDto;
 import shop.itcontest17.itcontest17.notification.application.NotificationService;
-import shop.itcontest17.itcontest17.notification.domain.repository.NotificationRepository;
 import shop.itcontest17.itcontest17.quiz.api.dto.request.QuizSizeReqDto;
 import shop.itcontest17.itcontest17.quiz.api.dto.response.QuizResListDto;
 import shop.itcontest17.itcontest17.quiz.application.QuizService;
@@ -31,12 +30,6 @@ import shop.itcontest17.itcontest17.quiz.domain.QuizScore;
 @Service
 @RequiredArgsConstructor
 public class MultiService {
-
-    // 매칭이 성공하면 (큐를 매칭할 때마다 확인해서 이미 큐에 사람이 존재하면 서로 빼기)
-    // 그러려면 채팅 넣으면 큐에 넣고 매칭 취소하면 큐에서 빼는 그런 구조가 필요할 듯?
-    // 큐에 담은 정보를 토대로 2명이 매칭되면 그 사람들한테 초대 메세지 보내고
-    // 그렇게 채팅방에 참여시키기 (방아이디 공통적으로 주고, 사용자 이름도 보내주면서)
-
 
     private final QuizService quizService;
     private final MemberRepository memberRepository;
