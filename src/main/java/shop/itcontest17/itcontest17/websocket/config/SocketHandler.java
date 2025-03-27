@@ -1,4 +1,4 @@
-package shop.itcontest17.itcontest17.multi.config;
+package shop.itcontest17.itcontest17.websocket.config;
 
 import java.util.ArrayList;
 import java.util.HashMap;
