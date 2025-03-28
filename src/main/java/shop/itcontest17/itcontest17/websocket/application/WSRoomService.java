@@ -3,9 +3,13 @@ package shop.itcontest17.itcontest17.websocket.application;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessageSendingOperations;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import shop.itcontest17.itcontest17.game.api.dto.WebSocketAnswerResponse;
 import shop.itcontest17.itcontest17.game.api.dto.WebSocketQuestionResponse;
 import shop.itcontest17.itcontest17.game.application.GameSession;
+import shop.itcontest17.itcontest17.member.domain.Member;
+import shop.itcontest17.itcontest17.member.domain.repository.MemberRepository;
+import shop.itcontest17.itcontest17.member.exception.MemberNotFoundException;
 import shop.itcontest17.itcontest17.quiz.api.dto.response.QuizResDto;
 import shop.itcontest17.itcontest17.quiz.api.dto.request.QuizSizeReqDto;
 import shop.itcontest17.itcontest17.quiz.application.QuizService;
@@ -13,6 +17,7 @@ import shop.itcontest17.itcontest17.quiz.domain.QuizCategory;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import shop.itcontest17.itcontest17.quiz.domain.QuizScore;
 import shop.itcontest17.itcontest17.websocket.api.dto.Question;
 
 @Service
@@ -20,6 +25,7 @@ import shop.itcontest17.itcontest17.websocket.api.dto.Question;
 public class WSRoomService {
 
     private final QuizService quizService;
+    private final MemberRepository memberRepository;
     private final SimpMessageSendingOperations messagingTemplate;
     private final Map<String, GameSession> sessionMap = new ConcurrentHashMap<>();
 
@@ -48,6 +54,7 @@ public class WSRoomService {
                 new WebSocketQuestionResponse("QUESTION", q.text(), q.options()));
     }
 
+    @Transactional
     public void receiveAnswer(String roomId, String username, int index) {
         GameSession session = sessionMap.get(roomId);
         if (session == null || session.isFinished()) return;
@@ -65,11 +72,22 @@ public class WSRoomService {
         );
 
         if (isCorrect) {
+            session.addCorrectAnswer(username);
             session.nextQuestion();
 
             if (session.isFinished()) {
+                // ✅ 게임 종료 메시지 + 승리자 전송
+                String winner = session.getWinner();
+                Member member = memberRepository.findByEmail(winner).orElseThrow(MemberNotFoundException::new);
+                member.incrementStreak(QuizScore.MULTI_SCORE.getScore());
+
                 messagingTemplate.convertAndSend("/topic/game/" + roomId,
-                        Map.of("type", "GAME_END", "message", "게임이 종료되었습니다."));
+                        Map.of(
+                                "type", "GAME_END",
+                                "message", "게임이 종료되었습니다.",
+                                "winner", winner
+                        )
+                );
                 sessionMap.remove(roomId);
             } else {
                 sendCurrentQuestion(roomId);

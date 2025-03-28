@@ -53,6 +53,7 @@ public class WebsocketHandshakeInterceptor implements HandshakeInterceptor {
             attributes.put("roomId", roomId);
 
             log.info("✅ WebSocket 인증 성공 - userEmail: {}, roomId: {}", email, roomId);
+
             return true;
         }
 
