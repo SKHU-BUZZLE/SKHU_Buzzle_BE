@@ -66,8 +66,7 @@ public class QuizService {
 
     // 10개 퀴즈 만들기
     @Transactional
-    public QuizResListDto askForAdvice(String email, QuizSizeReqDto quizSizeReqDto) {
-        Member member = memberRepository.findByEmail(email).orElseThrow(MemberNotFoundException::new);
+    public QuizResListDto askForAdvice(QuizSizeReqDto quizSizeReqDto) {
 
         String selectedQuestions = switch (QuizCategory.valueOf(quizSizeReqDto.category().name())) {
             case HISTORY -> historyQuestions;

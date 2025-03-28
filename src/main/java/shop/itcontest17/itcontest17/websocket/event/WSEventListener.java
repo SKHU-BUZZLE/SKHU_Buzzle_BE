@@ -22,14 +22,15 @@ public class WSEventListener {
 
     private final WSRoomService wsRoomService;
     private final Map<String, Set<String>> roomPlayers = new ConcurrentHashMap<>();
+    private final Set<String> startedRooms = ConcurrentHashMap.newKeySet();
 
     @EventListener
     public void handleWebSocketSubscribeListener(SessionSubscribeEvent event) {
         SimpMessageHeaderAccessor accessor = SimpMessageHeaderAccessor.wrap(event.getMessage());
-        String destination = accessor.getDestination();
         Map<String, Object> sessionAttributes = accessor.getSessionAttributes();
         if (sessionAttributes == null) return;
 
+        String destination = accessor.getDestination();
         String roomId = parseRoomId(destination);
         String userEmail = (String) sessionAttributes.get("userEmail");
 
@@ -40,21 +41,26 @@ public class WSEventListener {
 
         sessionAttributes.put("roomId", roomId);
 
+        // 참가자 목록 갱신
         roomPlayers.putIfAbsent(roomId, ConcurrentHashMap.newKeySet());
         Set<String> players = roomPlayers.get(roomId);
         players.add(userEmail);
 
         log.info("🟢 {} 님이 방 {} 에 참가 (현재 인원: {})", userEmail, roomId, players.size());
-
-        // ✅ 브로드캐스팅: 참가자 입장
         wsRoomService.broadcastToRoom(roomId, "PLAYER_JOINED", userEmail + "님이 입장했습니다.");
 
-        // ✅ 게임 시작 조건 확인
-        if (players.size() == 2) {
-            log.info("🚀 방 {} 게임 시작 조건 충족!", roomId);
-            wsRoomService.sendGameStart(roomId);
+        // ✅ 2명이 모이면 게임 시작 (단, 이미 시작되지 않았다면)
+        if (players.size() == 2 && !startedRooms.contains(roomId)) {
+            synchronized (startedRooms) {
+                if (!startedRooms.contains(roomId)) {
+                    startedRooms.add(roomId);
+                    log.info("🚀 방 {} 게임 시작 조건 충족!", roomId);
+                    wsRoomService.startGame(roomId);
+                }
+            }
         }
     }
+
 
     @EventListener
     public void handleWebSocketDisconnectListener(SessionDisconnectEvent event) {
@@ -70,12 +76,10 @@ public class WSEventListener {
             if (players != null) {
                 players.remove(userEmail);
                 log.info("🔴 {} 님이 방 {} 에서 퇴장 (남은 인원: {})", userEmail, roomId, players.size());
-
-                // ✅ 브로드캐스팅: 퇴장
                 wsRoomService.broadcastToRoom(roomId, "PLAYER_LEFT", userEmail + "님이 퇴장했습니다.");
-
                 if (players.isEmpty()) {
                     roomPlayers.remove(roomId);
+                    startedRooms.remove(roomId); // ✅ 방 비면 초기화
                 }
             }
         }
