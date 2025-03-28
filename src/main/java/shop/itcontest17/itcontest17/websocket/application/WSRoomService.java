@@ -105,4 +105,17 @@ public class WSRoomService {
                 Map.of("type", type, "message", message)
         );
     }
+
+    public void resendCurrentQuestionToUser(String roomId, String userEmail) {
+        GameSession session = sessionMap.get(roomId);
+        if (session == null || session.isFinished()) return;
+
+        Question q = session.getCurrentQuestion();
+
+        messagingTemplate.convertAndSend(
+                "/topic/game/" + roomId,
+                WebSocketQuestionResponse.of(q.text(), q.options())
+        );
+    }
+
 }
