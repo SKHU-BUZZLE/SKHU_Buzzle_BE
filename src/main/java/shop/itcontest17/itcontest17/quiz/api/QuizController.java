@@ -41,7 +41,7 @@ public class QuizController implements QuizDocs{
                                                                @RequestBody QuizSizeReqDto quizSizeReqDto) {
         return new RspTemplate<>(HttpStatus.OK,
                 "퀴즈 여러 개 생성 완료",
-                quizService.askForAdvice(email, quizSizeReqDto));
+                quizService.askForAdvice(quizSizeReqDto));
     }
 
     @PostMapping("/correct-answer")

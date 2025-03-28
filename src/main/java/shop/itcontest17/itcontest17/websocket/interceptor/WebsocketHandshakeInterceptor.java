@@ -33,18 +33,21 @@ public class WebsocketHandshakeInterceptor implements HandshakeInterceptor {
             WebSocketHandler wsHandler,
             Map<String, Object> attributes
     ) {
-        String token = UriComponentsBuilder
-                .fromUri(request.getURI())
-                .build()
-                .getQueryParams()
-                .getFirst("authorization");
+        var queryParams = UriComponentsBuilder.fromUri(request.getURI()).build().getQueryParams();
+        String token = queryParams.getFirst("authorization");
+        String roomId = queryParams.getFirst("roomId");
 
-        log.info("🔒 WebSocket 인증 시도 - {}", token);
+        log.info("🔒 WebSocket 인증 시도 - token: {}, roomId: {}", token, roomId);
 
         if (token != null && validate(token)) {
             Claims claims = parseToken(token);
-            attributes.put("userEmail", claims.getSubject());
-            log.info("✅ WebSocket 인증 성공 - {}", claims.getSubject());
+            String email = claims.getSubject();
+
+            attributes.put("userEmail", email);
+            attributes.put("roomId", roomId);
+
+            log.info("✅ WebSocket 인증 성공 - userEmail: {}, roomId: {}", email, roomId);
+
             return true;
         }
 
@@ -89,6 +92,6 @@ public class WebsocketHandshakeInterceptor implements HandshakeInterceptor {
             WebSocketHandler wsHandler,
             Exception exception
     ) {
-        // 필요시 로그 등 후처리
+        // 후처리 필요 시 사용
     }
 }

@@ -55,7 +55,7 @@ public class MultiService {
             String roomId = createRoomId();
 
             QuizSizeReqDto quizSizeReqDto = new QuizSizeReqDto(QuizCategory.ALL, 3);
-            QuizResListDto quizList = quizService.askForAdvice(user1.getEmail(), quizSizeReqDto);
+            QuizResListDto quizList = quizService.askForAdvice(quizSizeReqDto);
 
             MultiResDto resultForUser1 = MultiResDto.builder()
                     .roomId(roomId)
