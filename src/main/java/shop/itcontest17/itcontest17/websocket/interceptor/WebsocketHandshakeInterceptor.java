@@ -39,12 +39,6 @@ public class WebsocketHandshakeInterceptor implements HandshakeInterceptor {
 
         log.info("🔒 WebSocket 인증 시도 - token: {}, roomId: {}", token, roomId);
 
-        if (token != null && token.startsWith("Bearer ")) {
-            token = token.substring(7);
-        } else if (token != null && token.startsWith("Bearer%20")) {
-            token = token.substring("Bearer%20".length());
-        }
-
         if (token != null && validate(token)) {
             Claims claims = parseToken(token);
             String email = claims.getSubject();
