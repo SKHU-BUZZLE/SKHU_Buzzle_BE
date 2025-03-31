@@ -16,7 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
-import shop.itcontest17.itcontest17.auth.api.dto.response.IdTokenResDto;
+import shop.itcontest17.itcontest17.auth.api.dto.response.IdTokenAndAccessTokenResponse;
 import shop.itcontest17.itcontest17.auth.api.dto.response.UserInfo;
 import shop.itcontest17.itcontest17.auth.application.AuthService;
 import shop.itcontest17.itcontest17.global.oauth.exception.OAuthException;
@@ -42,8 +42,7 @@ public class KakaoAuthService implements AuthService {
         this.restTemplate = restTemplate;
     }
 
-    @Override
-    public IdTokenResDto getIdToken(String code) {
+    public IdTokenAndAccessTokenResponse getIdToken(String code) {
         HttpHeaders headers = new HttpHeaders();
         headers.add("Content-Type", "application/x-www-form-urlencoded;charset=utf-8");
 
@@ -53,28 +52,30 @@ public class KakaoAuthService implements AuthService {
         params.add("redirect_uri", redirectUri);
         params.add("code", code);
 
-        HttpEntity<MultiValueMap<String, String>> kakaoTokenRequest = new HttpEntity<>(params, headers);    // 요청, 응답 생성
+        HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(params, headers);
 
         ResponseEntity<String> response = restTemplate.exchange(
                 KAKAO_TOKEN_URL,
                 HttpMethod.POST,
-                kakaoTokenRequest,
+                request,
                 String.class
         );
 
         if (response.getStatusCode().is2xxSuccessful()) {
-            String responseBody = response.getBody();
             try {
-                JsonNode jsonNode = objectMapper.readTree(responseBody);
-                JsonNode idToken = jsonNode.get("id_token");
-
-                return new IdTokenResDto(idToken);
+                JsonNode jsonNode = objectMapper.readTree(response.getBody());
+                return new IdTokenAndAccessTokenResponse(
+                        jsonNode.get("access_token").asText(),
+                        jsonNode.get("id_token").asText()
+                );
             } catch (Exception e) {
-                throw new RuntimeException("ID 토큰을 파싱하는데 실패했습니다.", e);
+                throw new RuntimeException("카카오 토큰 파싱 실패", e);
             }
         }
-        throw new RuntimeException("카카오 엑세스 토큰을 가져오는데 실패했습니다.");
+
+        throw new RuntimeException("카카오 토큰 요청 실패");
     }
+
 
     @Override
     public String getProvider() {
