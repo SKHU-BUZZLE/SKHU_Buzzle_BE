@@ -106,7 +106,7 @@ public class WSRoomService {
         );
     }
 
-    public void resendCurrentQuestionToUser(String roomId, String userEmail) {
+    public void resendCurrentQuestionToUser(String roomId) {
         GameSession session = sessionMap.get(roomId);
         if (session == null || session.isFinished()) return;
 

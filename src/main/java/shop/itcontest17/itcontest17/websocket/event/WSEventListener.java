@@ -62,7 +62,7 @@ public class WSEventListener {
         // ✅ 게임이 이미 시작된 상태에서 유저가 재입장한 경우 → 문제 재전송
         else if (startedRooms.contains(roomId)) {
             log.info("🔁 {} 님이 재접속 - 방 {} 현재 문제 재전송", userEmail, roomId);
-            wsRoomService.resendCurrentQuestionToUser(roomId, userEmail);
+            wsRoomService.resendCurrentQuestionToUser(roomId);
         }
     }
 

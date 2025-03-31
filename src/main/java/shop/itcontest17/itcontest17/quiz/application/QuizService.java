@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.ChatClient;
 import org.springframework.ai.chat.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
@@ -21,6 +22,7 @@ import shop.itcontest17.itcontest17.quiz.api.dto.response.QuizResListDto;
 import shop.itcontest17.itcontest17.quiz.domain.QuizCategory;
 import shop.itcontest17.itcontest17.quiz.domain.QuizScore;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class QuizService {
@@ -53,7 +55,6 @@ public class QuizService {
             case CAPITAL -> capitalQuestions;
             case SCIENCE -> scienceQuestions;
             case ALL -> allQuestions;
-            default -> throw new IllegalArgumentException("Invalid category");
         };
 
         ChatResponse response = callChat(selectedQuestions);
@@ -74,7 +75,6 @@ public class QuizService {
             case CAPITAL -> capitalQuestions;
             case SCIENCE -> scienceQuestions;
             case ALL -> allQuestions;
-            default -> throw new IllegalArgumentException("Invalid category");
         };
 
         List<QuizResDto> quizList = new ArrayList<>();
@@ -116,7 +116,7 @@ public class QuizService {
         String answer = (lines.length > 6 && !lines[6].replace("정답: ", "").trim().isEmpty())
                 ? lines[6].replace("정답: ", "").trim()
                 : (lines.length > 7 ? lines[7].replace("정답: ", "").trim() : "");
-        System.out.println(Arrays.stream(lines).toList());
+        log.info(Arrays.stream(lines).toList().toString());
         // DTO 생성 및 반환
         return QuizResDto.of(question, option1, option2, option3, option4, answer);
     }
