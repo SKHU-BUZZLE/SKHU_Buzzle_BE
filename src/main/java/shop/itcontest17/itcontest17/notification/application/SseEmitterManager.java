@@ -71,4 +71,8 @@ public class SseEmitterManager {
     public void removeEmitter(String emitterId) {
         emitters.remove(emitterId);
     }
+
+    public SseEmitter getEmitter(Long memberId) {
+        return emitters.get(String.valueOf(memberId));
+    }
 }
