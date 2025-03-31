@@ -95,8 +95,9 @@ public class QuizService {
                 new Prompt(
                         prompt,
                         OpenAiChatOptions.builder()
-                                .withTemperature(0.4F)
-                                .withFrequencyPenalty(0.7F)
+                                .withTemperature(1F)
+                                .withFrequencyPenalty(0.6F)
+                                .withPresencePenalty(1F)
                                 .withModel("gpt-4o")
                                 .build()
                 ));
