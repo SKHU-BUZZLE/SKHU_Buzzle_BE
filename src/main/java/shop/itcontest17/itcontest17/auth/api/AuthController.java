@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import shop.itcontest17.itcontest17.auth.api.dto.request.RefreshTokenReqDto;
 import shop.itcontest17.itcontest17.auth.api.dto.request.TokenReqDto;
+import shop.itcontest17.itcontest17.auth.api.dto.response.IdTokenAndAccessTokenResponse;
 import shop.itcontest17.itcontest17.auth.api.dto.response.IdTokenResDto;
 import shop.itcontest17.itcontest17.auth.api.dto.response.MemberLoginResDto;
 import shop.itcontest17.itcontest17.auth.api.dto.response.UserInfo;
@@ -39,8 +40,8 @@ public class AuthController implements AuthDocs{
     private final TokenService tokenService;
 
     @GetMapping("oauth2/callback/{provider}")
-    public IdTokenResDto callback(@PathVariable(name = "provider") String provider,
-                                  @RequestParam(name = "code") String code) {
+    public IdTokenAndAccessTokenResponse callback(@PathVariable(name = "provider") String provider,
+                                                  @RequestParam(name = "code") String code) {
         AuthService authService = authServiceFactory.getAuthService(provider);
         return authService.getIdToken(code);
     }
