@@ -39,5 +39,9 @@ public class GameSession {
                 .map(Map.Entry::getKey)
                 .orElse(null);
     }
+
+    public boolean isLastQuestion() {
+        return currentQuestionIndex >= questions.size() - 1;
+    }
 }
 

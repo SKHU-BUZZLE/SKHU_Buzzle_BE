@@ -20,7 +20,9 @@ import shop.itcontest17.itcontest17.websocket.api.dto.Question;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
@@ -77,26 +79,37 @@ public class WSRoomService {
 
         if (isCorrect) {
             session.addCorrectAnswer(username);
-            session.nextQuestion();
 
-            if (session.isFinished()) {
-                String winner = session.getWinner();
-
-                Member member = memberRepository.findByEmail(winner)
-                        .orElseThrow(MemberNotFoundException::new);
-
-                member.incrementStreak(QuizScore.MULTI_SCORE.getScore());
-
-                messagingTemplate.convertAndSend(
-                        "/topic/game/" + roomId,
-                        WebSocketGameEndResponse.of(winner)
-                );
-
-                sessionMap.remove(roomId);
+            if (session.isLastQuestion()) {
+                session.nextQuestion(); // 마지막 문제 이후로 이동
+                handleGameEnd(roomId, session);
             } else {
-                sendCurrentQuestion(roomId);
+                // 로딩 메시지 전송
+                broadcastToRoom(roomId, "loading", "잠시 후 다음 문제가 전송됩니다.");
+
+                // 3초 지연 후 다음 문제 전송
+                CompletableFuture.delayedExecutor(3, TimeUnit.SECONDS).execute(() -> {
+                    session.nextQuestion();
+                    sendCurrentQuestion(roomId);
+                });
             }
         }
+    }
+
+    private void handleGameEnd(String roomId, GameSession session) {
+        String winner = session.getWinner();
+
+        Member member = memberRepository.findByEmail(winner)
+                .orElseThrow(MemberNotFoundException::new);
+
+        member.incrementStreak(QuizScore.MULTI_SCORE.getScore());
+
+        messagingTemplate.convertAndSend(
+                "/topic/game/" + roomId,
+                WebSocketGameEndResponse.of(winner)
+        );
+
+        sessionMap.remove(roomId);
     }
 
     public void broadcastToRoom(String roomId, String type, String message) {
@@ -117,5 +130,4 @@ public class WSRoomService {
                 WebSocketQuestionResponse.of(q.text(), q.options())
         );
     }
-
 }
