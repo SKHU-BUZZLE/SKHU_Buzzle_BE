@@ -33,7 +33,7 @@ public class Member extends BaseEntity {
 
     private Integer streak = 0;
 
-    private Integer life = 5;
+    private Integer life = 50;
 
     @Builder
     private Member(Status status,
