@@ -88,7 +88,7 @@ public class WSRoomService {
                 broadcastToRoom(roomId, "loading", "잠시 후 다음 문제가 전송됩니다.");
 
                 // 3초 지연 후 다음 문제 전송
-                CompletableFuture.delayedExecutor(3, TimeUnit.SECONDS).execute(() -> {
+                CompletableFuture.delayedExecutor(5, TimeUnit.SECONDS).execute(() -> {
                     session.nextQuestion();
                     sendCurrentQuestion(roomId);
                 });
