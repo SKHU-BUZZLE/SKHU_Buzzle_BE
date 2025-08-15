@@ -35,7 +35,7 @@ public class WSRoomService {
 
     public void startGame(String roomId) {
         List<QuizResDto> quizzes = quizService
-                .askForAdvice(new QuizSizeReqDto(QuizCategory.ALL, 7))
+                .askForAdvice(new QuizSizeReqDto(QuizCategory.ALL, 3))
                 .quizResDtos();
 
         List<Question> questions = quizzes.stream()
