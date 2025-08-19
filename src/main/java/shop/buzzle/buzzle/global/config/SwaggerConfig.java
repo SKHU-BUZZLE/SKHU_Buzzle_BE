@@ -33,7 +33,7 @@ public class SwaggerConfig {
                         .bearerFormat("JWT"));
 
         Server localServer = new Server()
-                .url("https://dwenoeim.store")
+                .url("https://buzzle2.store")
                 .description("Local Server");
 
         return new OpenAPI()
