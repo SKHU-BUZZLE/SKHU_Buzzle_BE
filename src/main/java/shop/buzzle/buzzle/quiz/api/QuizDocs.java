@@ -50,7 +50,7 @@ public interface QuizDocs {
     RspTemplate<Boolean> chooseCorrectAnswer(
             @Parameter(description = "로그인한 유저의 이메일(토큰에서 자동 추출)", hidden = true) String email);
 
-    @Operation(summary = "오답 선택 시 false 반환", description = "오답 선택 시 false를 반환합니다.",
+    @Operation(summary = "오답 선택 시 true 반환", description = "오답 선택 시 true를 반환합니다.",
             responses = {
                     @ApiResponse(responseCode = "200", description = "오답 선택 처리 완료",
                             content = @Content(schema = @Schema(implementation = Boolean.class))),

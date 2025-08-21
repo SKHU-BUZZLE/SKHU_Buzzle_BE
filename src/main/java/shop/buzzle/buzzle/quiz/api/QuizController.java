@@ -38,7 +38,7 @@ public class QuizController implements QuizDocs{
                 quizService.askForAdvice(quizSizeReqDto));
     }
 
-    @PostMapping("/correct-answer")
+    @GetMapping("/correct-answer")
     public RspTemplate<Boolean> chooseCorrectAnswer(@CurrentUserEmail String email) {
         return new RspTemplate<>(HttpStatus.OK, "정답 선택 완료", quizService.chooseTheCorrectAnswer(email));
     }
