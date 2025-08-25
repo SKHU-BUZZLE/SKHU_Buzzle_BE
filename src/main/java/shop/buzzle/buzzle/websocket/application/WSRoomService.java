@@ -70,26 +70,27 @@ public class WSRoomService {
         GameSession session = sessionMap.get(roomId);
         if (session == null || session.isFinished()) return;
 
-        // roomLock 생성
         roomLocks.putIfAbsent(roomId, new Object());
 
         synchronized (roomLocks.get(roomId)) {
-            // 한 명만 정답 인정
-            if (!session.tryAnswering()) return;
-
             Question current = session.getCurrentQuestion();
             boolean isCorrect = current.isCorrectIndex(index);
 
+            // 정답/오답 여부와 관계 없이 모두에게 브로드캐스트
             messagingTemplate.convertAndSend(
                     "/topic/game/" + roomId,
                     WebSocketAnswerResponse.of(username, isCorrect, current.answerIndex())
             );
 
-            if (isCorrect) {
-                session.addCorrectAnswer(username);
+            // 정답이 아니면 아무것도 안 하고 종료 (계속 시도 가능하도록..)
+            if (!isCorrect) return;
 
-                if (session.isLastQuestion()) {
-                    session.nextQuestion();
+            // 정답일 경우: 오직 한 명만 정답자 인정하기. 동시성 잡는 로직 + 문제 넘기기
+            boolean accepted = session.tryAnswerCorrect(username, index);
+            if (!accepted) return;
+
+            if (session.tryNextQuestion()) {
+                if (session.isFinished()) {
                     handleGameEnd(roomId, session);
                     roomLocks.remove(roomId);
                 } else {
@@ -99,7 +100,6 @@ public class WSRoomService {
                         synchronized (roomLocks.get(roomId)) {
                             GameSession currentSession = sessionMap.get(roomId);
                             if (currentSession != null && !currentSession.isFinished()) {
-                                currentSession.nextQuestion();
                                 sendCurrentQuestion(roomId);
                             }
                         }
@@ -108,6 +108,7 @@ public class WSRoomService {
             }
         }
     }
+
 
     private void handleGameEnd(String roomId, GameSession session) {
         String winner = session.getWinner();
