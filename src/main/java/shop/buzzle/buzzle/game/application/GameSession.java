@@ -3,6 +3,8 @@ package shop.buzzle.buzzle.game.application;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import lombok.Getter;
 import shop.buzzle.buzzle.websocket.api.dto.Question;
 
@@ -12,7 +14,7 @@ public class GameSession {
     private int currentQuestionIndex = 0;
     private boolean finished = false;
     private final Map<String, Integer> scores = new HashMap<>();
-
+    private final AtomicBoolean answered = new AtomicBoolean(false);
 
     public GameSession(List<Question> questions) {
         this.questions = questions;
@@ -24,6 +26,7 @@ public class GameSession {
 
     public void nextQuestion() {
         currentQuestionIndex++;
+        answered.set(false); // 다음 문제로 넘어갈 때 초기화
         if (currentQuestionIndex >= questions.size()) {
             finished = true;
         }
@@ -43,5 +46,8 @@ public class GameSession {
     public boolean isLastQuestion() {
         return currentQuestionIndex >= questions.size() - 1;
     }
-}
 
+    public boolean tryAnswering() {
+        return answered.compareAndSet(false, true);
+    }
+}

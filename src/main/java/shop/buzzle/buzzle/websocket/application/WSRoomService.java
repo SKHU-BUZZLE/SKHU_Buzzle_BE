@@ -32,6 +32,7 @@ public class WSRoomService {
     private final MemberRepository memberRepository;
     private final SimpMessageSendingOperations messagingTemplate;
     private final Map<String, GameSession> sessionMap = new ConcurrentHashMap<>();
+    private final Map<String, Object> roomLocks = new ConcurrentHashMap<>();
 
     public void startGame(String roomId) {
         List<QuizResDto> quizzes = quizService
@@ -69,29 +70,41 @@ public class WSRoomService {
         GameSession session = sessionMap.get(roomId);
         if (session == null || session.isFinished()) return;
 
-        Question current = session.getCurrentQuestion();
-        boolean isCorrect = current.isCorrectIndex(index);
+        // roomLock 생성
+        roomLocks.putIfAbsent(roomId, new Object());
 
-        messagingTemplate.convertAndSend(
-                "/topic/game/" + roomId,
-                WebSocketAnswerResponse.of(username, isCorrect, current.answerIndex())
-        );
+        synchronized (roomLocks.get(roomId)) {
+            // 한 명만 정답 인정
+            if (!session.tryAnswering()) return;
 
-        if (isCorrect) {
-            session.addCorrectAnswer(username);
+            Question current = session.getCurrentQuestion();
+            boolean isCorrect = current.isCorrectIndex(index);
 
-            if (session.isLastQuestion()) {
-                session.nextQuestion(); // 마지막 문제 이후로 이동
-                handleGameEnd(roomId, session);
-            } else {
-                // 로딩 메시지 전송
-                broadcastToRoom(roomId, "loading", "잠시 후 다음 문제가 전송됩니다.");
+            messagingTemplate.convertAndSend(
+                    "/topic/game/" + roomId,
+                    WebSocketAnswerResponse.of(username, isCorrect, current.answerIndex())
+            );
 
-                // 3초 지연 후 다음 문제 전송
-                CompletableFuture.delayedExecutor(5, TimeUnit.SECONDS).execute(() -> {
+            if (isCorrect) {
+                session.addCorrectAnswer(username);
+
+                if (session.isLastQuestion()) {
                     session.nextQuestion();
-                    sendCurrentQuestion(roomId);
-                });
+                    handleGameEnd(roomId, session);
+                    roomLocks.remove(roomId);
+                } else {
+                    broadcastToRoom(roomId, "loading", "잠시 후 다음 문제가 전송됩니다.");
+
+                    CompletableFuture.delayedExecutor(5, TimeUnit.SECONDS).execute(() -> {
+                        synchronized (roomLocks.get(roomId)) {
+                            GameSession currentSession = sessionMap.get(roomId);
+                            if (currentSession != null && !currentSession.isFinished()) {
+                                currentSession.nextQuestion();
+                                sendCurrentQuestion(roomId);
+                            }
+                        }
+                    });
+                }
             }
         }
     }
