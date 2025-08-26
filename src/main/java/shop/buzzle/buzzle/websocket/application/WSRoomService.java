@@ -66,7 +66,7 @@ public class WSRoomService {
     }
 
     @Transactional
-    public void receiveAnswer(String roomId, String username, int index) {
+    public void receiveAnswer(String roomId, String email, int index) {
         GameSession session = sessionMap.get(roomId);
         if (session == null || session.isFinished()) return;
 
@@ -76,17 +76,18 @@ public class WSRoomService {
             Question current = session.getCurrentQuestion();
             boolean isCorrect = current.isCorrectIndex(index);
 
-            // 정답/오답 여부와 관계 없이 모두에게 브로드캐스트
+            Member member = memberRepository.findByEmail(email)
+                    .orElseThrow(MemberNotFoundException::new);
+            String displayName = member.getName();
+
             messagingTemplate.convertAndSend(
                     "/topic/game/" + roomId,
-                    WebSocketAnswerResponse.of(username, isCorrect, current.answerIndex())
+                    WebSocketAnswerResponse.of(displayName, isCorrect, current.answerIndex())
             );
 
-            // 정답이 아니면 아무것도 안 하고 종료 (계속 시도 가능하도록..)
             if (!isCorrect) return;
 
-            // 정답일 경우: 오직 한 명만 정답자 인정하기. 동시성 잡는 로직 + 문제 넘기기
-            boolean accepted = session.tryAnswerCorrect(username, index);
+            boolean accepted = session.tryAnswerCorrect(email, index);
             if (!accepted) return;
 
             if (session.tryNextQuestion()) {
@@ -95,7 +96,6 @@ public class WSRoomService {
                     roomLocks.remove(roomId);
                 } else {
                     broadcastToRoom(roomId, "loading", "잠시 후 다음 문제가 전송됩니다.");
-
                     CompletableFuture.delayedExecutor(5, TimeUnit.SECONDS).execute(() -> {
                         synchronized (roomLocks.get(roomId)) {
                             GameSession currentSession = sessionMap.get(roomId);
@@ -108,7 +108,6 @@ public class WSRoomService {
             }
         }
     }
-
 
     private void handleGameEnd(String roomId, GameSession session) {
         String winner = session.getWinner();
