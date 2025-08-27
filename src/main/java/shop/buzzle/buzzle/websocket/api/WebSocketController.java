@@ -47,7 +47,6 @@ public class WebSocketController {
             @Payload AnswerRequest answerRequest
     ) {
         String username = (String) headerAccessor.getSessionAttributes().get("userEmail");
-        wsRoomService.receiveAnswer(roomId, username, answerRequest.index());
+        wsRoomService.receiveAnswer(roomId, username, answerRequest);
     }
-
 }

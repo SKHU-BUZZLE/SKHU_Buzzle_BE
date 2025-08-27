@@ -16,6 +16,7 @@ import shop.buzzle.buzzle.quiz.api.dto.request.QuizSizeReqDto;
 import shop.buzzle.buzzle.quiz.application.QuizService;
 import shop.buzzle.buzzle.quiz.domain.QuizCategory;
 import shop.buzzle.buzzle.quiz.domain.QuizScore;
+import shop.buzzle.buzzle.websocket.api.dto.AnswerRequest;
 import shop.buzzle.buzzle.websocket.api.dto.Question;
 
 import java.util.List;
@@ -61,20 +62,30 @@ public class WSRoomService {
 
         messagingTemplate.convertAndSend(
                 "/topic/game/" + roomId,
-                WebSocketQuestionResponse.of(q.text(), q.options())
+                WebSocketQuestionResponse.of(
+                        q.text(),
+                        q.options(),
+                        session.getCurrentQuestionIndex()
+                )
         );
     }
 
+
     @Transactional
-    public void receiveAnswer(String roomId, String email, int index) {
+    public void receiveAnswer(String roomId, String email, AnswerRequest answerRequest) {
         GameSession session = sessionMap.get(roomId);
         if (session == null || session.isFinished()) return;
+
+        int submittedIndex = answerRequest.index();
+        int clientQuestionIndex = answerRequest.questionIndex();
+
+        if (clientQuestionIndex != session.getCurrentQuestionIndex()) return;
 
         roomLocks.putIfAbsent(roomId, new Object());
 
         synchronized (roomLocks.get(roomId)) {
             Question current = session.getCurrentQuestion();
-            boolean isCorrect = current.isCorrectIndex(index);
+            boolean isCorrect = current.isCorrectIndex(submittedIndex);
 
             Member member = memberRepository.findByEmail(email)
                     .orElseThrow(MemberNotFoundException::new);
@@ -87,7 +98,7 @@ public class WSRoomService {
 
             if (!isCorrect) return;
 
-            boolean accepted = session.tryAnswerCorrect(email, index);
+            boolean accepted = session.tryAnswerCorrect(email, submittedIndex);
             if (!accepted) return;
 
             if (session.tryNextQuestion()) {
@@ -108,6 +119,7 @@ public class WSRoomService {
             }
         }
     }
+
 
     private void handleGameEnd(String roomId, GameSession session) {
         String winner = session.getWinner();
@@ -140,7 +152,12 @@ public class WSRoomService {
 
         messagingTemplate.convertAndSend(
                 "/topic/game/" + roomId,
-                WebSocketQuestionResponse.of(q.text(), q.options())
+                WebSocketQuestionResponse.of(
+                        q.text(),
+                        q.options(),
+                        session.getCurrentQuestionIndex()
+                )
         );
     }
+
 }
