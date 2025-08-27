@@ -20,7 +20,6 @@ public class WebSocketController {
 
     // 보내는 경로 예시) /app/room/1
     @MessageMapping("/room/{roomId}")
-    @SendTo("/topic/room/{roomId}")
     public void processMessage(
             @DestinationVariable String roomId,
             SimpMessageHeaderAccessor headerAccessor,
@@ -30,7 +29,6 @@ public class WebSocketController {
 
     // 유저가 보내는 메세지 가공.
     @MessageMapping("/game/{roomId}")
-    @SendTo("/topic/game/{roomId}")
     public void processGameMessage(
             @DestinationVariable String roomId,
             SimpMessageHeaderAccessor headerAccessor,
