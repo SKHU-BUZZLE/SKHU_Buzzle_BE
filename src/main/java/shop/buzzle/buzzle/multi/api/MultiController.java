@@ -17,15 +17,15 @@ public class MultiController implements MultiDocs{
 
     private final MultiService multiService;
 
-    @PostMapping
-    public CompletableFuture<MultiResDto> requestMatch(@CurrentUserEmail String email) {
-        return multiService.addToQueue(email);
-    }
-
-    @PostMapping("/end")
-    public RspTemplate<Boolean> winner(@RequestBody WinnerResDto winnerResDto) {
-        return new RspTemplate<>(HttpStatus.OK, "승자 점수 처리 완료", multiService.winnerProcessing(winnerResDto.email()));
-    }
+//    @PostMapping
+//    public CompletableFuture<MultiResDto> requestMatch(@CurrentUserEmail String email) {
+//        return multiService.addToQueue(email);
+//    }
+//
+//    @PostMapping("/end")
+//    public RspTemplate<Boolean> winner(@RequestBody WinnerResDto winnerResDto) {
+//        return new RspTemplate<>(HttpStatus.OK, "승자 점수 처리 완료", multiService.winnerProcessing(winnerResDto.email()));
+//    }
 
     @PostMapping("/v2")
     public RspTemplate<String> requestMatchV2(@CurrentUserEmail String email) {

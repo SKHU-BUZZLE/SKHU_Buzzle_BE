@@ -5,9 +5,10 @@ import java.util.List;
 public record WebSocketQuestionResponse(
         String type,
         String question,
-        List<String> options
+        List<String> options,
+        int questionIndex
 ) {
-    public static WebSocketQuestionResponse of(String question, List<String> options) {
-        return new WebSocketQuestionResponse("QUESTION", question, options);
+    public static WebSocketQuestionResponse of(String question, List<String> options,int questionIndex) {
+        return new WebSocketQuestionResponse("QUESTION", question, options, questionIndex);
     }
 }
