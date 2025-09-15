@@ -10,6 +10,7 @@ import shop.buzzle.buzzle.member.domain.Member;
 import shop.buzzle.buzzle.member.domain.repository.MemberRepository;
 import shop.buzzle.buzzle.member.exception.MemberNotFoundException;
 import shop.buzzle.buzzle.multi.api.dto.response.MultiResDto;
+import shop.buzzle.buzzle.multi.api.dto.response.MatchInfoDto;
 import shop.buzzle.buzzle.notification.application.NotificationService;
 import shop.buzzle.buzzle.notification.application.SseEmitterManager;
 import shop.buzzle.buzzle.quiz.api.dto.request.QuizSizeReqDto;
@@ -92,10 +93,13 @@ public class MultiService {
                 waitingEmails.remove(user2.getEmail());
 
                 String roomId = createRoomId();
-                String message = "roomId :" + roomId;
 
-                notificationService.send(user1.getEmail(), message);
-                notificationService.send(user2.getEmail(), message);
+                // user1에게는 user2 정보를, user2에게는 user1 정보를 전송
+                MatchInfoDto matchInfoForUser1 = MatchInfoDto.of(roomId, user2.getName(), user2.getPicture());
+                MatchInfoDto matchInfoForUser2 = MatchInfoDto.of(roomId, user1.getName(), user1.getPicture());
+
+                notificationService.send(user1.getEmail(), "matchInfo", matchInfoForUser1);
+                notificationService.send(user2.getEmail(), "matchInfo", matchInfoForUser2);
 
                 log.info("✅ 매칭 완료: {} ↔ {}", user1.getEmail(), user2.getEmail());
             }

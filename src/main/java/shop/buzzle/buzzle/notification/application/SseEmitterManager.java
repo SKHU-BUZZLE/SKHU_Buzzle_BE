@@ -57,10 +57,33 @@ public class SseEmitterManager {
         }
     }
 
+    public void send(Member targetMember, String eventName, Object data) {
+        String emitterId = String.valueOf(targetMember.getId());
+        SseEmitter emitter = emitters.get(emitterId);
+
+        if (emitter != null) {
+            sendToClientWithEvent(emitter, emitterId, eventName, data);
+        } else {
+            log.warn("이벤트 메시지를 보낼 수 없음: SSE 연결이 없음 (memberId: {})", emitterId);
+        }
+    }
+
     public void sendToClient(SseEmitter emitter, String emitterId, Object data) {
         try {
             emitter.send(SseEmitter.event()
                     .id(emitterId)
+                    .data(data));
+        } catch (IOException exception) {
+            removeEmitter(emitterId);
+            throw new SendFailedException("전송 실패", exception);
+        }
+    }
+
+    public void sendToClientWithEvent(SseEmitter emitter, String emitterId, String eventName, Object data) {
+        try {
+            emitter.send(SseEmitter.event()
+                    .id(emitterId)
+                    .name(eventName)
                     .data(data));
         } catch (IOException exception) {
             removeEmitter(emitterId);
