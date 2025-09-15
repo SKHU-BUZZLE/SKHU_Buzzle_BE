@@ -1,6 +1,7 @@
 package shop.buzzle.buzzle.multiroom.api.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import shop.buzzle.buzzle.member.domain.Member;
 import shop.buzzle.buzzle.quiz.domain.QuizCategory;
 
 import java.util.List;
@@ -34,26 +35,18 @@ public record MultiRoomEventResponse(
     }
 
     // 플레이어 입장 알림
-    public static MultiRoomEventResponse playerJoined(String playerName, int currentPlayers, int maxPlayers, boolean canStart) {
+    public static MultiRoomEventResponse playerJoined(Member player) {
         var data = Map.of(
-                "playerName", playerName,
-                "currentPlayers", currentPlayers,
-                "maxPlayers", maxPlayers,
-                "canStart", canStart
+                "email", player.getEmail(),
+                "name", player.getName(),
+                "picture", player.getPicture() != null ? player.getPicture() : ""
         );
-        return new MultiRoomEventResponse("PLAYER_JOINED", playerName + "님이 입장했습니다.", data);
+        return new MultiRoomEventResponse("PLAYER_JOINED", player.getName() + "님이 입장했습니다.", data);
     }
 
     // 플레이어 퇴장 알림
-    public static MultiRoomEventResponse playerLeft(String playerName, int currentPlayers, int maxPlayers, boolean roomDisbanded) {
-        var data = Map.of(
-                "playerName", playerName,
-                "currentPlayers", currentPlayers,
-                "maxPlayers", maxPlayers,
-                "roomDisbanded", roomDisbanded
-        );
-        String message = roomDisbanded ? "방이 해체되었습니다." : playerName + "님이 퇴장했습니다.";
-        return new MultiRoomEventResponse("PLAYER_LEFT", message, data);
+    public static MultiRoomEventResponse playerLeft(String playerEmail) {
+        return new MultiRoomEventResponse("PLAYER_LEFT", playerEmail + "님이 퇴장했습니다.", Map.of("email", playerEmail));
     }
 
     // 게임 시작
@@ -109,5 +102,14 @@ public record MultiRoomEventResponse(
     // 로딩 메시지
     public static MultiRoomEventResponse loading(String loadingMessage) {
         return new MultiRoomEventResponse("LOADING", loadingMessage, null);
+    }
+
+    // 일반 메시지
+    public static MultiRoomEventResponse message(String message) {
+        return new MultiRoomEventResponse("MESSAGE", message, null);
+    }
+
+    public static MultiRoomEventResponse roomUpdated(MultiRoomInfoResDto roomInfo) {
+        return new MultiRoomEventResponse("ROOM_UPDATED", "방 정보가 갱신되었습니다.", roomInfo);
     }
 }

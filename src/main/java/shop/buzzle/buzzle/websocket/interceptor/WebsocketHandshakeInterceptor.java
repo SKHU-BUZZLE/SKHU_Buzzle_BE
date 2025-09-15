@@ -44,8 +44,11 @@ public class WebsocketHandshakeInterceptor implements HandshakeInterceptor {
             Claims claims = parseToken(token);
             String email = claims.getSubject();
 
+            // null 값을 속성에 넣지 않도록 처리
             attributes.put("userEmail", email);
-            attributes.put("roomId", roomId);
+            if (roomId != null && !roomId.trim().isEmpty()) {
+                attributes.put("roomId", roomId);
+            }
 
             if (request instanceof ServletServerHttpRequest servletRequest) {
                 servletRequest.getServletRequest()

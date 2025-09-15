@@ -12,9 +12,11 @@ public record MultiRoomInfoResDto(
         QuizCategory category,
         int quizCount,
         boolean gameStarted,
+        boolean canStartGame,
         List<PlayerInfoDto> players
 ) {
     public record PlayerInfoDto(
+            String email,
             String name,
             boolean isHost
     ) {}

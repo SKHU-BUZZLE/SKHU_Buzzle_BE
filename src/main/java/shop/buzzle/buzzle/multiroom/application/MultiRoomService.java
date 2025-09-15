@@ -42,13 +42,12 @@ MultiRoomService {
         Member host = memberRepository.findByEmail(hostEmail)
                 .orElseThrow(MemberNotFoundException::new);
 
-        String roomId = request.roomId();
+        String roomId = UUID.randomUUID().toString();
         String inviteCode = generateInviteCode();
 
         MultiRoom room = new MultiRoom(
                 roomId,
                 inviteCode,
-                hostEmail,
                 request.maxPlayers(),
                 request.category(),
                 request.quizCount()
@@ -59,7 +58,6 @@ MultiRoomService {
 
         return new MultiRoomCreateResDto(
                 inviteCode,
-                roomId,
                 request.maxPlayers(),
                 request.category(),
                 request.quizCount(),
@@ -88,6 +86,11 @@ MultiRoomService {
 
         Member player = memberRepository.findByEmail(playerEmail)
                 .orElseThrow(MemberNotFoundException::new);
+
+        // 첫 유저가 방장이 됨
+        if (room.getCurrentPlayerCount() == 0) {
+            room.setHost(playerEmail);
+        }
 
         boolean added = room.addPlayer(playerEmail);
         if (!added) {
@@ -151,12 +154,13 @@ MultiRoomService {
         }
     }
 
-    private MultiRoomInfoResDto buildRoomInfo(MultiRoom room) {
+    public MultiRoomInfoResDto buildRoomInfo(MultiRoom room) {
         List<MultiRoomInfoResDto.PlayerInfoDto> players = room.getPlayerEmails().stream()
                 .map(email -> {
                     Member member = memberRepository.findByEmail(email)
                             .orElseThrow(MemberNotFoundException::new);
                     return new MultiRoomInfoResDto.PlayerInfoDto(
+                            member.getEmail(),
                             member.getName(),
                             room.isHost(email)
                     );
@@ -172,11 +176,15 @@ MultiRoomService {
                 room.getCategory(),
                 room.getQuizCount(),
                 room.isGameStarted(),
+                room.canStartGame(),
                 players
         );
     }
 
     private String getHostName(String hostEmail) {
+        if (hostEmail == null) {
+            return "Unknown";
+        }
         return memberRepository.findByEmail(hostEmail)
                 .map(Member::getName)
                 .orElse("Unknown");

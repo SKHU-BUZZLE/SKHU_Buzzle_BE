@@ -6,7 +6,6 @@ import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.stereotype.Controller;
-import shop.buzzle.buzzle.multiroom.api.dto.request.MultiRoomCreateReqDto;
 import shop.buzzle.buzzle.multiroom.api.dto.request.MultiRoomJoinReqDto;
 import shop.buzzle.buzzle.multiroom.application.MultiRoomWebSocketService;
 import shop.buzzle.buzzle.websocket.api.dto.AnswerRequest;
@@ -16,16 +15,6 @@ import shop.buzzle.buzzle.websocket.api.dto.AnswerRequest;
 public class MultiRoomWebSocketController {
 
     private final MultiRoomWebSocketService multiRoomWebSocketService;
-
-    // 방 생성 (웹소켓)
-    @MessageMapping("/room/create")
-    public void createRoom(
-            SimpMessageHeaderAccessor headerAccessor,
-            @Payload MultiRoomCreateReqDto request
-    ) {
-        String userEmail = (String) headerAccessor.getSessionAttributes().get("userEmail");
-        multiRoomWebSocketService.createAndJoinRoom(userEmail, request, headerAccessor);
-    }
 
     // 초대코드로 방 참가 (웹소켓)
     @MessageMapping("/room/join")

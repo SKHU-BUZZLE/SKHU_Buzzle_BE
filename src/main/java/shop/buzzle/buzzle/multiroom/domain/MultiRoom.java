@@ -11,7 +11,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class MultiRoom {
     private final String roomId;
     private final String inviteCode;
-    private final String hostEmail;
+    private String hostEmail;
     private final int maxPlayers;
     private final QuizCategory category;
     private final int quizCount;
@@ -20,16 +20,20 @@ public class MultiRoom {
     private final Set<String> playerEmails = ConcurrentHashMap.newKeySet();
     private boolean gameStarted = false;
 
-    public MultiRoom(String roomId, String inviteCode, String hostEmail,
+    public MultiRoom(String roomId, String inviteCode, 
                     int maxPlayers, QuizCategory category, int quizCount) {
         this.roomId = roomId;
         this.inviteCode = inviteCode;
-        this.hostEmail = hostEmail;
         this.maxPlayers = maxPlayers;
         this.category = category;
         this.quizCount = quizCount;
         this.createdAt = LocalDateTime.now();
-        this.playerEmails.add(hostEmail);
+    }
+
+    public void setHost(String hostEmail) {
+        if (this.hostEmail == null) {
+            this.hostEmail = hostEmail;
+        }
     }
 
     public boolean addPlayer(String playerEmail) {
