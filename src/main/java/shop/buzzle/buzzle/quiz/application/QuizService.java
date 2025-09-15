@@ -1,7 +1,6 @@
 package shop.buzzle.buzzle.quiz.application;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,12 +15,10 @@ import shop.buzzle.buzzle.member.domain.Member;
 import shop.buzzle.buzzle.member.domain.repository.MemberRepository;
 import shop.buzzle.buzzle.member.exception.MemberNotFoundException;
 import shop.buzzle.buzzle.quiz.api.dto.request.QuizAnswerReqDto;
-import shop.buzzle.buzzle.quiz.api.dto.request.QuizReqDto;
 import shop.buzzle.buzzle.quiz.api.dto.request.QuizSizeReqDto;
 import shop.buzzle.buzzle.quiz.api.dto.response.QuizResDto;
 import shop.buzzle.buzzle.quiz.api.dto.response.QuizResListDto;
 import shop.buzzle.buzzle.quiz.api.dto.response.QuizResultResDto;
-import shop.buzzle.buzzle.quiz.domain.QuizCategory;
 import shop.buzzle.buzzle.quiz.domain.QuizResult;
 import shop.buzzle.buzzle.quiz.domain.QuizScore;
 import shop.buzzle.buzzle.quiz.domain.repository.QuizResultRepository;
@@ -59,31 +56,6 @@ public class QuizService {
     @Value("${questions.misc}")
     private String miscQuestions;
 
-    @Transactional
-    public QuizResDto askForAdvice(String email, QuizReqDto quizReqDto) {
-        Member member = memberRepository.findByEmail(email)
-                .orElseThrow(MemberNotFoundException::new);
-
-        String selectedQuestions = switch (quizReqDto.category()) {
-            case ALL -> allQuestions;
-            case HISTORY -> historyQuestions;
-            case SOCIETY -> societyQuestions;
-            case SCIENCE -> scienceQuestions;
-            case CULTURE -> cultureQuestions;
-            case SPORTS -> sportsQuestions;
-            case NATURE -> natureQuestions;
-            case MISC -> miscQuestions;
-        };
-
-        ChatResponse response = callChat(selectedQuestions);
-        if (response == null) {
-            response = callChat(selectedQuestions);
-        }
-
-        return parseQuiz(response.getResult().getOutput().getContent());
-    }
-
-    // 10개 퀴즈 만들기
     @Transactional
     public QuizResListDto askForAdvice(QuizSizeReqDto quizSizeReqDto) {
 

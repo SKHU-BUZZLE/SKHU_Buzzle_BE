@@ -25,14 +25,6 @@ public class QuizController implements QuizDocs{
 
     private final QuizService quizService;
 
-    // AI 응답
-    @PostMapping
-    public RspTemplate<QuizResDto> advice(@CurrentUserEmail String email
-            , @RequestBody QuizReqDto quizReqDto) {
-        return new RspTemplate<>(HttpStatus.OK, "퀴즈 생성 완료", quizService.askForAdvice(email, quizReqDto));
-    }
-
-    // 퀴즈 여러 개 생성
     @PostMapping("/multiple")
     public RspTemplate<QuizResListDto> generateMultipleQuizzes(@CurrentUserEmail String email,
                                                                @RequestBody QuizSizeReqDto quizSizeReqDto) {
