@@ -64,4 +64,15 @@ public class GameSession {
                 .map(Map.Entry::getKey)
                 .orElse(null);
     }
+
+    public String getCurrentLeader() {
+        return scores.entrySet().stream()
+                .max(Map.Entry.comparingByValue())
+                .map(Map.Entry::getKey)
+                .orElse(null);
+    }
+
+    public Map<String, Integer> getCurrentScores() {
+        return new HashMap<>(scores);
+    }
 }

@@ -38,4 +38,12 @@ public class NotificationService {
 
         sseEmitterManager.send(targetMember, message);
     }
+
+    @Transactional
+    public void send(String targetMemberEmail, String eventName, Object data) {
+        Member targetMember = memberRepository.findByEmail(targetMemberEmail)
+                .orElseThrow(MemberNotFoundException::new);
+
+        sseEmitterManager.send(targetMember, eventName, data);
+    }
 }
