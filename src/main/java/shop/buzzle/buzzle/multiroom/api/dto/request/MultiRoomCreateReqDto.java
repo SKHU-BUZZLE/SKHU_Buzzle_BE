@@ -3,6 +3,7 @@ package shop.buzzle.buzzle.multiroom.api.dto.request;
 import shop.buzzle.buzzle.quiz.domain.QuizCategory;
 
 public record MultiRoomCreateReqDto(
+        String roomId,
         int maxPlayers,
         QuizCategory category,
         int quizCount

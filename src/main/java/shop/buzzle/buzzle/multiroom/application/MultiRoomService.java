@@ -42,7 +42,7 @@ MultiRoomService {
         Member host = memberRepository.findByEmail(hostEmail)
                 .orElseThrow(MemberNotFoundException::new);
 
-        String roomId = generateRoomId();
+        String roomId = request.roomId();
         String inviteCode = generateInviteCode();
 
         MultiRoom room = new MultiRoom(
@@ -180,10 +180,6 @@ MultiRoomService {
         return memberRepository.findByEmail(hostEmail)
                 .map(Member::getName)
                 .orElse("Unknown");
-    }
-
-    private String generateRoomId() {
-        return UUID.randomUUID().toString();
     }
 
     private String generateInviteCode() {

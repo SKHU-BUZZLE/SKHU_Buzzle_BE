@@ -1,26 +1,27 @@
 package shop.buzzle.buzzle.multiroom.application;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
+import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessageSendingOperations;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import shop.buzzle.buzzle.member.domain.Member;
 import shop.buzzle.buzzle.member.domain.repository.MemberRepository;
 import shop.buzzle.buzzle.member.exception.MemberNotFoundException;
+import shop.buzzle.buzzle.multiroom.api.dto.request.MultiRoomCreateReqDto;
+import shop.buzzle.buzzle.multiroom.api.dto.request.MultiRoomJoinReqDto;
+import shop.buzzle.buzzle.multiroom.api.dto.response.MultiRoomEventResponse;
 import shop.buzzle.buzzle.multiroom.domain.MultiRoom;
+import shop.buzzle.buzzle.multiroom.event.MultiRoomGameStartEvent;
 import shop.buzzle.buzzle.multiroom.exception.MultiRoomNotFoundException;
-import shop.buzzle.buzzle.quiz.api.dto.response.QuizResDto;
 import shop.buzzle.buzzle.quiz.api.dto.request.QuizSizeReqDto;
+import shop.buzzle.buzzle.quiz.api.dto.response.QuizResDto;
 import shop.buzzle.buzzle.quiz.application.QuizService;
 import shop.buzzle.buzzle.quiz.domain.QuizScore;
 import shop.buzzle.buzzle.websocket.api.dto.AnswerRequest;
 import shop.buzzle.buzzle.websocket.api.dto.Question;
-import shop.buzzle.buzzle.multiroom.event.MultiRoomGameStartEvent;
-import shop.buzzle.buzzle.multiroom.api.dto.request.MultiRoomCreateReqDto;
-import shop.buzzle.buzzle.multiroom.api.dto.request.MultiRoomJoinReqDto;
-import shop.buzzle.buzzle.multiroom.api.dto.response.MultiRoomEventResponse;
-import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 
 import java.util.List;
 import java.util.Map;
@@ -30,6 +31,7 @@ import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class MultiRoomWebSocketService {
 
     private final MultiRoomService multiRoomService;
@@ -40,20 +42,21 @@ public class MultiRoomWebSocketService {
     private final Map<String, MultiRoomGameSession> gameSessions = new ConcurrentHashMap<>();
     private final Map<String, Object> roomLocks = new ConcurrentHashMap<>();
 
-    // 웹소켓으로 방 생성 및 입장
+    // ✅ 방 생성
     public void createAndJoinRoom(String hostEmail, MultiRoomCreateReqDto request, SimpMessageHeaderAccessor headerAccessor) {
         try {
-            // 방 생성
             var createResponse = multiRoomService.createRoom(hostEmail, request);
             String roomId = createResponse.roomId();
 
-            // 세션에 방 정보 저장
             headerAccessor.getSessionAttributes().put("roomId", roomId);
             headerAccessor.getSessionAttributes().put("destination", "/topic/room/" + roomId);
 
-            // 방 생성자에게 직접 응답
+            // 1️⃣ 방 생성자 개인 큐로 응답
+            log.info("📨 [ROOM_CREATE] send to user={} roomId={} inviteCode={}",
+                    hostEmail, roomId, createResponse.inviteCode());
+
             messagingTemplate.convertAndSendToUser(
-                    headerAccessor.getUser().getName(),
+                    hostEmail,
                     "/queue/room",
                     MultiRoomEventResponse.roomCreated(
                             roomId,
@@ -65,7 +68,10 @@ public class MultiRoomWebSocketService {
                     )
             );
 
-            // 방 전체에 방장 입장 알림
+            // 2️⃣ 방 전체에 알림 (방장 입장 브로드캐스트)
+            log.info("📢 [ROOM_CREATE_BROADCAST] host={} joined roomId={}",
+                    createResponse.hostName(), roomId);
+
             messagingTemplate.convertAndSend(
                     "/topic/room/" + roomId,
                     MultiRoomEventResponse.playerJoined(
@@ -77,37 +83,42 @@ public class MultiRoomWebSocketService {
             );
 
         } catch (Exception e) {
+            log.error("❌ [ROOM_CREATE_ERROR] {}", e.getMessage(), e);
             messagingTemplate.convertAndSendToUser(
-                    headerAccessor.getUser().getName(),
+                    hostEmail,
                     "/queue/room",
                     MultiRoomEventResponse.error("방 생성 실패: " + e.getMessage())
             );
         }
     }
 
-    // 웹소켓으로 방 참가
+    // ✅ 방 참가
     public void joinRoom(String playerEmail, MultiRoomJoinReqDto request, SimpMessageHeaderAccessor headerAccessor) {
         try {
-            // 방 참가
             var roomInfo = multiRoomService.joinRoom(playerEmail, request);
             String roomId = roomInfo.roomId();
 
-            // 세션에 방 정보 저장
             headerAccessor.getSessionAttributes().put("roomId", roomId);
             headerAccessor.getSessionAttributes().put("destination", "/topic/room/" + roomId);
 
-            // 참가자에게 직접 응답
+            // 1️⃣ 참가자 본인에게 응답
+            log.info("📨 [ROOM_JOIN] send to user={} roomId={} inviteCode={}",
+                    playerEmail, roomId, roomInfo.inviteCode());
+
             messagingTemplate.convertAndSendToUser(
-                    headerAccessor.getUser().getName(),
+                    playerEmail,
                     "/queue/room",
                     MultiRoomEventResponse.joinedRoom(roomInfo)
             );
 
-            // 방 전체에 플레이어 입장 알림
+            // 2️⃣ 방 전체에 브로드캐스트
             MultiRoom room = multiRoomService.getRoom(roomId);
             if (room != null) {
                 Member player = memberRepository.findByEmail(playerEmail)
                         .orElseThrow(MemberNotFoundException::new);
+
+                log.info("📢 [ROOM_JOIN_BROADCAST] {} 님이 방 {} 에 참가 (현재 {} / {})",
+                        player.getName(), roomId, room.getCurrentPlayerCount(), room.getMaxPlayers());
 
                 messagingTemplate.convertAndSend(
                         "/topic/room/" + roomId,
@@ -121,8 +132,9 @@ public class MultiRoomWebSocketService {
             }
 
         } catch (Exception e) {
+            log.error("❌ [ROOM_JOIN_ERROR] {}", e.getMessage(), e);
             messagingTemplate.convertAndSendToUser(
-                    headerAccessor.getUser().getName(),
+                    playerEmail,
                     "/queue/room",
                     MultiRoomEventResponse.error("방 참가 실패: " + e.getMessage())
             );
