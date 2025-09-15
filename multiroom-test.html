@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>멀티룸 퀴즈 테스트</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.6.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            display: flex;
+            gap: 30px;
+            margin-top: 20px;
+        }
+        .player-section {
+            flex: 1;
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .player-section h2 {
+            color: #333;
+            margin-top: 0;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #007bff;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        input, select, button {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .status {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 6px;
+            font-weight: bold;
+        }
+        .status.connected {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .messages {
+            height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            background: #f9f9f9;
+            border-radius: 6px;
+            margin-top: 15px;
+        }
+        .message {
+            margin-bottom: 8px;
+            padding: 8px;
+            border-radius: 4px;
+            background: white;
+            border-left: 4px solid #007bff;
+        }
+        .message.error {
+            border-left-color: #dc3545;
+            background: #fff5f5;
+        }
+        .message.success {
+            border-left-color: #28a745;
+            background: #f5fff5;
+        }
+        .room-info {
+            background: #e7f3ff;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+            border: 1px solid #b3d9ff;
+        }
+        .invite-code {
+            font-size: 18px;
+            font-weight: bold;
+            color: #007bff;
+            text-align: center;
+            padding: 10px;
+            background: white;
+            border-radius: 6px;
+            margin: 10px 0;
+            border: 2px dashed #007bff;
+        }
+        .quiz-section {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            border: 1px solid #dee2e6;
+        }
+        .options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        .option {
+            padding: 10px;
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .option:hover {
+            background: #f0f8ff;
+            border-color: #007bff;
+        }
+        .option.selected {
+            background: #007bff;
+            color: white;
+            border-color: #0056b3;
+        }
+        .players-list {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+        .player-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            background: white;
+            margin: 5px 0;
+            border-radius: 4px;
+            border: 1px solid #dee2e6;
+        }
+        .player-item.host {
+            border-left: 4px solid #ffc107;
+        }
+        .leaderboard {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+            border: 1px solid #ffeaa7;
+        }
+        .score-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px;
+            border-bottom: 1px solid #ffeaa7;
+        }
+    </style>
+</head>
+<body>
+    <h1 style="text-align: center; color: #333;">🎯 멀티룸 퀴즈 테스트</h1>
+
+    <div class="container">
+        <!-- 플레이어 1 (방장) -->
+        <div class="player-section">
+            <h2>👑 플레이어 1 (방장)</h2>
+
+            <div class="form-group">
+                <label>토큰:</label>
+                <input type="text" id="token1" placeholder="Bearer 토큰 입력" value="eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0MUBleGFtcGxlLmNvbSIsImV4cCI6MTczNzAwMDAwMH0.test1">
+            </div>
+
+            <button onclick="connectPlayer1()">웹소켓 연결</button>
+            <div id="status1" class="status disconnected">연결 안됨</div>
+
+            <div style="margin-top: 20px;">
+                <h3>방 생성</h3>
+                <div class="form-group">
+                    <label>최대 플레이어:</label>
+                    <select id="maxPlayers">
+                        <option value="2">2명</option>
+                        <option value="3">3명</option>
+                        <option value="4">4명</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>카테고리:</label>
+                    <select id="category">
+                        <option value="ALL">전체</option>
+                        <option value="HISTORY">역사</option>
+                        <option value="SCIENCE">과학</option>
+                        <option value="CULTURE">문화</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>퀴즈 개수:</label>
+                    <select id="quizCount">
+                        <option value="3">3개</option>
+                        <option value="5">5개</option>
+                        <option value="10">10개</option>
+                    </select>
+                </div>
+                <button onclick="createRoom()" id="createBtn" disabled>방 생성</button>
+            </div>
+
+            <div id="roomInfo1" class="room-info" style="display: none;">
+                <h3>방 정보</h3>
+                <div id="inviteCode" class="invite-code"></div>
+                <div id="playersInfo1" class="players-list"></div>
+                <button onclick="startGame()" id="startBtn" disabled>게임 시작</button>
+            </div>
+
+            <div id="quiz1" class="quiz-section" style="display: none;">
+                <h3>퀴즈</h3>
+                <div id="question1"></div>
+                <div id="options1" class="options"></div>
+                <div id="leaderboard1" class="leaderboard" style="display: none;"></div>
+            </div>
+
+            <div class="messages" id="messages1"></div>
+        </div>
+
+        <!-- 플레이어 2 -->
+        <div class="player-section">
+            <h2>👤 플레이어 2</h2>
+
+            <div class="form-group">
+                <label>토큰:</label>
+                <input type="text" id="token2" placeholder="Bearer 토큰 입력" value="eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0MkBleGFtcGxlLmNvbSIsImV4cCI6MTczNzAwMDAwMH0.test2">
+            </div>
+
+            <button onclick="connectPlayer2()">웹소켓 연결</button>
+            <div id="status2" class="status disconnected">연결 안됨</div>
+
+            <div style="margin-top: 20px;">
+                <h3>방 참가</h3>
+                <div class="form-group">
+                    <label>초대 코드:</label>
+                    <input type="text" id="joinCode" placeholder="초대 코드 입력">
+                </div>
+                <button onclick="joinRoom()" id="joinBtn" disabled>방 참가</button>
+            </div>
+
+            <div id="roomInfo2" class="room-info" style="display: none;">
+                <h3>방 정보</h3>
+                <div id="playersInfo2" class="players-list"></div>
+            </div>
+
+            <div id="quiz2" class="quiz-section" style="display: none;">
+                <h3>퀴즈</h3>
+                <div id="question2"></div>
+                <div id="options2" class="options"></div>
+                <div id="leaderboard2" class="leaderboard" style="display: none;"></div>
+            </div>
+
+            <div class="messages" id="messages2"></div>
+        </div>
+    </div>
+
+    <script>
+        let stompClient1 = null;
+        let stompClient2 = null;
+        let currentRoomId = null;
+        let currentQuestionIndex = -1;
+        let selectedAnswer1 = -1;
+        let selectedAnswer2 = -1;
+
+        function addMessage(player, message, type = 'info') {
+            const messagesDiv = document.getElementById(`messages${player}`);
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            messageDiv.innerHTML = `
+                <small>${new Date().toLocaleTimeString()}</small><br>
+                ${message}
+            `;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function connectPlayer1() {
+            const token = document.getElementById('token1').value;
+            if (!token) {
+                alert('토큰을 입력하세요');
+                return;
+            }
+
+            const socket = new SockJS('http://localhost:8080/ws');
+            stompClient1 = Stomp.over(socket);
+
+            // 헤더에 토큰 추가
+            const headers = {
+                'Authorization': 'Bearer ' + token
+            };
+
+            stompClient1.connect(headers, function(frame) {
+                document.getElementById('status1').innerHTML = '연결됨';
+                document.getElementById('status1').className = 'status connected';
+                document.getElementById('createBtn').disabled = false;
+
+                addMessage(1, '웹소켓 연결 성공', 'success');
+
+                // 개인 메시지 구독
+                stompClient1.subscribe('/user/queue/room', function(message) {
+                    const data = JSON.parse(message.body);
+                    handlePersonalMessage(1, data);
+                });
+
+            }, function(error) {
+                addMessage(1, '연결 실패: ' + error, 'error');
+                document.getElementById('status1').innerHTML = '연결 실패';
+                document.getElementById('status1').className = 'status disconnected';
+            });
+        }
+
+        function connectPlayer2() {
+            const token = document.getElementById('token2').value;
+            if (!token) {
+                alert('토큰을 입력하세요');
+                return;
+            }
+
+            const socket = new SockJS('http://localhost:8080/ws');
+            stompClient2 = Stomp.over(socket);
+
+            const headers = {
+                'Authorization': 'Bearer ' + token
+            };
+
+            stompClient2.connect(headers, function(frame) {
+                document.getElementById('status2').innerHTML = '연결됨';
+                document.getElementById('status2').className = 'status connected';
+                document.getElementById('joinBtn').disabled = false;
+
+                addMessage(2, '웹소켓 연결 성공', 'success');
+
+                // 개인 메시지 구독
+                stompClient2.subscribe('/user/queue/room', function(message) {
+                    const data = JSON.parse(message.body);
+                    handlePersonalMessage(2, data);
+                });
+
+            }, function(error) {
+                addMessage(2, '연결 실패: ' + error, 'error');
+                document.getElementById('status2').innerHTML = '연결 실패';
+                document.getElementById('status2').className = 'status disconnected';
+            });
+        }
+
+        function createRoom() {
+            if (!stompClient1 || !stompClient1.connected) {
+                alert('먼저 웹소켓에 연결하세요');
+                return;
+            }
+
+            const roomData = {
+                maxPlayers: parseInt(document.getElementById('maxPlayers').value),
+                category: document.getElementById('category').value,
+                quizCount: parseInt(document.getElementById('quizCount').value)
+            };
+
+            stompClient1.send('/app/room/create', {}, JSON.stringify(roomData));
+            addMessage(1, '방 생성 요청 전송', 'info');
+        }
+
+        function joinRoom() {
+            if (!stompClient2 || !stompClient2.connected) {
+                alert('먼저 웹소켓에 연결하세요');
+                return;
+            }
+
+            const inviteCode = document.getElementById('joinCode').value;
+            if (!inviteCode) {
+                alert('초대 코드를 입력하세요');
+                return;
+            }
+
+            const joinData = {
+                inviteCode: inviteCode
+            };
+
+            stompClient2.send('/app/room/join', {}, JSON.stringify(joinData));
+            addMessage(2, '방 참가 요청 전송', 'info');
+        }
+
+        function startGame() {
+            if (!stompClient1 || !currentRoomId) {
+                alert('방이 생성되지 않았습니다');
+                return;
+            }
+
+            stompClient1.send(`/app/room/${currentRoomId}/start`, {}, {});
+            addMessage(1, '게임 시작 요청 전송', 'info');
+        }
+
+        function handlePersonalMessage(player, data) {
+            addMessage(player, `개인 메시지: ${data.message}`, data.type === 'ERROR' ? 'error' : 'success');
+
+            if (data.type === 'ROOM_CREATED') {
+                currentRoomId = data.data.roomId;
+                document.getElementById('inviteCode').textContent = `초대 코드: ${data.data.inviteCode}`;
+                document.getElementById('joinCode').value = data.data.inviteCode; // 자동으로 초대 코드 입력
+                document.getElementById('roomInfo1').style.display = 'block';
+
+                // 방 전체 이벤트 구독
+                subscribeToRoom(1, currentRoomId);
+
+            } else if (data.type === 'JOINED_ROOM') {
+                currentRoomId = data.data.roomId;
+                document.getElementById('roomInfo2').style.display = 'block';
+
+                // 방 전체 이벤트 구독
+                subscribeToRoom(2, currentRoomId);
+            }
+        }
+
+        function subscribeToRoom(player, roomId) {
+            const client = player === 1 ? stompClient1 : stompClient2;
+
+            client.subscribe(`/topic/room/${roomId}`, function(message) {
+                const data = JSON.parse(message.body);
+                handleRoomEvent(player, data);
+            });
+
+            addMessage(player, `방 이벤트 구독 시작: ${roomId}`, 'info');
+        }
+
+        function handleRoomEvent(player, data) {
+            addMessage(player, `방 이벤트: ${data.message}`, data.type === 'ERROR' ? 'error' : 'info');
+
+            switch(data.type) {
+                case 'PLAYER_JOINED':
+                    updatePlayersInfo(data.data);
+                    break;
+                case 'PLAYER_LEFT':
+                    if (data.data.roomDisbanded) {
+                        addMessage(player, '방이 해체되었습니다', 'error');
+                        resetUI(player);
+                    } else {
+                        updatePlayersInfo(data.data);
+                    }
+                    break;
+                case 'GAME_START':
+                    handleGameStart(player, data.data);
+                    break;
+                case 'QUESTION':
+                    handleQuestion(player, data.data);
+                    break;
+                case 'ANSWER_RESULT':
+                    handleAnswerResult(player, data.data);
+                    break;
+                case 'LEADERBOARD':
+                    handleLeaderboard(player, data.data);
+                    break;
+                case 'GAME_END':
+                    handleGameEnd(player, data.data);
+                    break;
+                case 'ERROR':
+                    addMessage(player, `오류: ${data.message}`, 'error');
+                    break;
+            }
+        }
+
+        function updatePlayersInfo(data) {
+            const playersHtml = `
+                <h4>플레이어 (${data.currentPlayers}/${data.maxPlayers})</h4>
+                ${data.canStart ? '<p style="color: green;">게임 시작 가능!</p>' : '<p style="color: orange;">더 많은 플레이어 필요</p>'}
+            `;
+
+            document.getElementById('playersInfo1').innerHTML = playersHtml;
+            document.getElementById('playersInfo2').innerHTML = playersHtml;
+
+            if (data.canStart) {
+                document.getElementById('startBtn').disabled = false;
+            }
+        }
+
+        function handleGameStart(player, data) {
+            document.getElementById(`quiz${player}`).style.display = 'block';
+            document.getElementById(`question${player}`).innerHTML = `
+                <h4>게임 시작!</h4>
+                <p>총 ${data.totalQuestions}문제</p>
+                <p>${data.countdownSeconds}초 후 첫 번째 문제가 나타납니다...</p>
+            `;
+
+            // 게임 시작 후 방 정보 숨기기
+            if (player === 1) {
+                document.getElementById('startBtn').disabled = true;
+            }
+        }
+
+        function handleQuestion(player, data) {
+            currentQuestionIndex = data.questionIndex;
+
+            document.getElementById(`question${player}`).innerHTML = `
+                <h4>문제 ${data.questionIndex + 1}</h4>
+                <p>${data.question}</p>
+            `;
+
+            const optionsHtml = data.options.map((option, index) =>
+                `<div class="option" onclick="selectOption(${player}, ${index})">${index + 1}. ${option}</div>`
+            ).join('');
+
+            document.getElementById(`options${player}`).innerHTML = optionsHtml;
+
+            // 선택 초기화
+            if (player === 1) selectedAnswer1 = -1;
+            if (player === 2) selectedAnswer2 = -1;
+        }
+
+        function selectOption(player, index) {
+            // 이미 선택된 옵션이 있으면 제거
+            document.querySelectorAll(`#options${player} .option`).forEach(opt => {
+                opt.classList.remove('selected');
+            });
+
+            // 새로 선택된 옵션 표시
+            document.querySelectorAll(`#options${player} .option`)[index].classList.add('selected');
+
+            if (player === 1) selectedAnswer1 = index;
+            if (player === 2) selectedAnswer2 = index;
+
+            // 답변 전송
+            submitAnswer(player, index);
+        }
+
+        function submitAnswer(player, answerIndex) {
+            const client = player === 1 ? stompClient1 : stompClient2;
+
+            if (!client || !currentRoomId) return;
+
+            const answerData = {
+                index: answerIndex,
+                questionIndex: currentQuestionIndex
+            };
+
+            client.send(`/app/room/${currentRoomId}/answer`, {}, JSON.stringify(answerData));
+            addMessage(player, `답변 제출: ${answerIndex + 1}번`, 'info');
+        }
+
+        function handleAnswerResult(player, data) {
+            const resultMsg = data.isCorrect ?
+                `✅ ${data.playerName}님이 정답을 맞혔습니다! (정답: ${data.correctIndex + 1}번)` :
+                `❌ ${data.playerName}님이 오답을 선택했습니다. (정답: ${data.correctIndex + 1}번)`;
+
+            addMessage(player, resultMsg, data.isCorrect ? 'success' : 'error');
+        }
+
+        function handleLeaderboard(player, data) {
+            const leaderboardHtml = `
+                <h4>🏆 현재 순위</h4>
+                <div class="score-item"><strong>리더: ${data.currentLeader}</strong></div>
+                ${Object.entries(data.scores).map(([name, score]) =>
+                    `<div class="score-item"><span>${name}</span><span>${score}점</span></div>`
+                ).join('')}
+            `;
+
+            document.getElementById(`leaderboard${player}`).innerHTML = leaderboardHtml;
+            document.getElementById(`leaderboard${player}`).style.display = 'block';
+        }
+
+        function handleGameEnd(player, data) {
+            addMessage(player, `🎉 게임 종료! 우승자: ${data.winner}`, 'success');
+
+            document.getElementById(`question${player}`).innerHTML = `
+                <h3>🎉 게임 종료!</h3>
+                <h2>우승자: ${data.winner}</h2>
+                <p>수고하셨습니다!</p>
+            `;
+
+            document.getElementById(`options${player}`).innerHTML = '';
+        }
+
+        function resetUI(player) {
+            document.getElementById(`roomInfo${player}`).style.display = 'none';
+            document.getElementById(`quiz${player}`).style.display = 'none';
+            document.getElementById(`leaderboard${player}`).style.display = 'none';
+            currentRoomId = null;
+            currentQuestionIndex = -1;
+        }
+
+        // 페이지 로드 시 자동으로 연결 (테스트용)
+        window.onload = function() {
+            addMessage(1, '플레이어 1: 방장 역할', 'info');
+            addMessage(2, '플레이어 2: 참가자 역할', 'info');
+            addMessage(1, '1. 웹소켓 연결 → 2. 방 생성 → 3. 초대 코드 확인', 'info');
+            addMessage(2, '1. 웹소켓 연결 → 2. 초대 코드 입력 → 3. 방 참가', 'info');
+        };
+    </script>
+</body>
+</html>

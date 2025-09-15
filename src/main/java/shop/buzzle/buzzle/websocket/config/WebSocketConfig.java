@@ -5,6 +5,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.web.socket.config.annotation.*;
 import org.springframework.web.socket.messaging.StompSubProtocolErrorHandler;
+import shop.buzzle.buzzle.websocket.interceptor.CustomHandshakeHandler;
 import shop.buzzle.buzzle.websocket.interceptor.WebsocketHandshakeInterceptor;
 
 @Configuration
@@ -33,6 +34,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                 .addEndpoint("/chat")
                 .setAllowedOriginPatterns("*")
                 .addInterceptors(new WebsocketHandshakeInterceptor(secretKey))
+                .setHandshakeHandler(new CustomHandshakeHandler())
                 .withSockJS(); // SockJS fallback 지원
     }
 }

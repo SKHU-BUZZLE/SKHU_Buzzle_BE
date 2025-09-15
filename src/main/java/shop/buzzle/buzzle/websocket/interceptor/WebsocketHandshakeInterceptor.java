@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
+import org.springframework.http.server.ServletServerHttpRequest;
 import org.springframework.web.socket.WebSocketHandler;
 import org.springframework.web.socket.server.HandshakeInterceptor;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -45,6 +46,11 @@ public class WebsocketHandshakeInterceptor implements HandshakeInterceptor {
 
             attributes.put("userEmail", email);
             attributes.put("roomId", roomId);
+
+            if (request instanceof ServletServerHttpRequest servletRequest) {
+                servletRequest.getServletRequest()
+                        .setAttribute("userPrincipal", new StompPrincipal(email));
+            }
 
             log.info("✅ WebSocket 인증 성공 - userEmail: {}, roomId: {}", email, roomId);
 

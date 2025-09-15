@@ -45,13 +45,23 @@ public class WSEventListener {
         }
 
         sessionAttributes.put("roomId", roomId);
+        sessionAttributes.put("destination", destination);
 
-        // 참가자 목록 갱신
+        boolean isMultiRoom = destination.contains("/room/");
+
+        if (isMultiRoom) {
+            log.info("🟢 {} 님이 멀티룸 {} 에 구독", userEmail, roomId);
+        } else {
+            handleRegularRoomSubscribe(roomId, userEmail);
+        }
+    }
+
+
+    private void handleRegularRoomSubscribe(String roomId, String userEmail) {
         roomPlayers.putIfAbsent(roomId, ConcurrentHashMap.newKeySet());
         Set<String> players = roomPlayers.get(roomId);
         players.add(userEmail);
 
-        // 플레이어 정보 조회 및 브로드캐스팅
         Member member = memberRepository.findByEmail(userEmail)
                 .orElseThrow(MemberNotFoundException::new);
 
@@ -64,7 +74,6 @@ public class WSEventListener {
         );
         wsRoomService.broadcastPlayerJoined(roomId, playerInfo);
 
-        // ✅ 2명이 모이면 게임 시작 (단, 이미 시작되지 않았다면)
         if (players.size() == 2 && !startedRooms.contains(roomId)) {
             synchronized (startedRooms) {
                 if (!startedRooms.contains(roomId)) {
@@ -73,9 +82,7 @@ public class WSEventListener {
                     wsRoomService.startGame(roomId);
                 }
             }
-        }
-        // ✅ 게임이 이미 시작된 상태에서 유저가 재입장한 경우 → 문제 재전송
-        else if (startedRooms.contains(roomId)) {
+        } else if (startedRooms.contains(roomId)) {
             log.info("🔁 {} 님이 재접속 - 방 {} 현재 문제 재전송", userEmail, roomId);
             wsRoomService.resendCurrentQuestionToUser(roomId);
         }
@@ -89,17 +96,29 @@ public class WSEventListener {
 
         String roomId = (String) sessionAttributes.get("roomId");
         String userEmail = (String) sessionAttributes.get("userEmail");
+        String destination = (String) sessionAttributes.get("destination");
 
         if (roomId != null && userEmail != null) {
-            Set<String> players = roomPlayers.get(roomId);
-            if (players != null) {
-                players.remove(userEmail);
-                log.info("🔴 {} 님이 방 {} 에서 퇴장 (남은 인원: {})", userEmail, roomId, players.size());
-                wsRoomService.broadcastToRoom(roomId, "PLAYER_LEFT", userEmail + "님이 퇴장했습니다.");
-                if (players.isEmpty()) {
-                    roomPlayers.remove(roomId);
-                    startedRooms.remove(roomId); // ✅ 방 비면 초기화
-                }
+            boolean isMultiRoom = destination != null && destination.contains("/room/");
+
+            if (isMultiRoom) {
+                log.info("🔴 {} 님이 멀티룸 {} 에서 연결 해제", userEmail, roomId);
+            } else {
+                handleRegularRoomDisconnect(roomId, userEmail);
+            }
+        }
+    }
+
+
+    private void handleRegularRoomDisconnect(String roomId, String userEmail) {
+        Set<String> players = roomPlayers.get(roomId);
+        if (players != null) {
+            players.remove(userEmail);
+            log.info("🔴 {} 님이 방 {} 에서 퇴장 (남은 인원: {})", userEmail, roomId, players.size());
+            wsRoomService.broadcastToRoom(roomId, "PLAYER_LEFT", userEmail + "님이 퇴장했습니다.");
+            if (players.isEmpty()) {
+                roomPlayers.remove(roomId);
+                startedRooms.remove(roomId);
             }
         }
     }
