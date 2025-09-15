@@ -19,6 +19,7 @@ import shop.buzzle.buzzle.quiz.domain.QuizScore;
 import shop.buzzle.buzzle.websocket.api.dto.AnswerRequest;
 import shop.buzzle.buzzle.websocket.api.dto.Question;
 import shop.buzzle.buzzle.websocket.api.dto.LeaderboardResponse;
+import shop.buzzle.buzzle.websocket.api.dto.PlayerJoinedResponse;
 
 import java.util.List;
 import java.util.Map;
@@ -115,7 +116,7 @@ public class WSRoomService {
                     handleGameEnd(roomId, session);
                     roomLocks.remove(roomId);
                 } else {
-                    broadcastToRoom(roomId, "loading", "3초 후 다음 문제가 전송됩니다.");
+                    broadcastToRoom(roomId, "LOADING", "3초 후 다음 문제가 전송됩니다.");
                     CompletableFuture.delayedExecutor(3, TimeUnit.SECONDS).execute(() -> {
                         synchronized (roomLocks.get(roomId)) {
                             GameSession currentSession = sessionMap.get(roomId);
@@ -147,9 +148,20 @@ public class WSRoomService {
     }
 
     public void broadcastToRoom(String roomId, String type, String message) {
+        Map<String, Object> response = new java.util.LinkedHashMap<>();
+        response.put("type", type);
+        response.put("message", message);
+
         messagingTemplate.convertAndSend(
                 "/topic/game/" + roomId,
-                Map.of("type", type, "message", message)
+                response
+        );
+    }
+
+    public void broadcastPlayerJoined(String roomId, PlayerJoinedResponse playerInfo) {
+        messagingTemplate.convertAndSend(
+                "/topic/game/" + roomId,
+                playerInfo
         );
     }
 
