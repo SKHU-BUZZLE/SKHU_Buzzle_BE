@@ -15,12 +15,16 @@ import org.springframework.transaction.annotation.Transactional;
 import shop.buzzle.buzzle.member.domain.Member;
 import shop.buzzle.buzzle.member.domain.repository.MemberRepository;
 import shop.buzzle.buzzle.member.exception.MemberNotFoundException;
+import shop.buzzle.buzzle.quiz.api.dto.request.QuizAnswerReqDto;
 import shop.buzzle.buzzle.quiz.api.dto.request.QuizReqDto;
 import shop.buzzle.buzzle.quiz.api.dto.request.QuizSizeReqDto;
 import shop.buzzle.buzzle.quiz.api.dto.response.QuizResDto;
 import shop.buzzle.buzzle.quiz.api.dto.response.QuizResListDto;
+import shop.buzzle.buzzle.quiz.api.dto.response.QuizResultResDto;
 import shop.buzzle.buzzle.quiz.domain.QuizCategory;
+import shop.buzzle.buzzle.quiz.domain.QuizResult;
 import shop.buzzle.buzzle.quiz.domain.QuizScore;
+import shop.buzzle.buzzle.quiz.domain.repository.QuizResultRepository;
 
 @Slf4j
 @Service
@@ -29,6 +33,7 @@ public class QuizService {
 
     private final ChatClient chatClient;
     private final MemberRepository memberRepository;
+    private final QuizResultRepository quizResultRepository;
 
     @Value("${questions.all}")
     private String allQuestions;
@@ -163,20 +168,40 @@ public class QuizService {
     }
 
     @Transactional
-    public boolean chooseTheCorrectAnswer(String email) {
+    public boolean chooseTheCorrectAnswer(String email, QuizAnswerReqDto quizAnswerReqDto) {
         Member member = memberRepository.findByEmail(email).orElseThrow(MemberNotFoundException::new);
 
-        member.incrementStreak(QuizScore.PERSONAL_SCORE.getScore());
+        QuizResult quizResult = QuizResult.createResult(
+                member,
+                quizAnswerReqDto.question(),
+                quizAnswerReqDto.option1(),
+                quizAnswerReqDto.option2(),
+                quizAnswerReqDto.option3(),
+                quizAnswerReqDto.option4(),
+                quizAnswerReqDto.correctAnswerNumber(),
+                quizAnswerReqDto.userAnswerNumber(),
+                quizAnswerReqDto.category()
+        );
 
-        return true;
+        quizResultRepository.save(quizResult);
+
+        if (quizResult.getIsCorrect()) {
+            member.incrementStreak(QuizScore.PERSONAL_SCORE.getScore());
+        } else {
+            member.decrementLife();
+        }
+
+        return quizResult.getIsCorrect();
     }
 
-    @Transactional
-    public boolean chooseTheIncorrectAnswer(String email) {
+    @Transactional(readOnly = true)
+    public List<QuizResultResDto> getIncorrectAnswers(String email) {
         Member member = memberRepository.findByEmail(email).orElseThrow(MemberNotFoundException::new);
 
-        member.decrementLife();
+        List<QuizResult> incorrectResults = quizResultRepository.findIncorrectAnswersByMember(member);
 
-        return true;
+        return incorrectResults.stream()
+                .map(QuizResultResDto::from)
+                .toList();
     }
 }

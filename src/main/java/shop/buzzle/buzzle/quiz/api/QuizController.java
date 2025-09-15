@@ -9,10 +9,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import shop.buzzle.buzzle.global.annotation.CurrentUserEmail;
 import shop.buzzle.buzzle.global.template.RspTemplate;
+import shop.buzzle.buzzle.quiz.api.dto.request.QuizAnswerReqDto;
 import shop.buzzle.buzzle.quiz.api.dto.request.QuizReqDto;
 import shop.buzzle.buzzle.quiz.api.dto.request.QuizSizeReqDto;
 import shop.buzzle.buzzle.quiz.api.dto.response.QuizResDto;
 import shop.buzzle.buzzle.quiz.api.dto.response.QuizResListDto;
+import shop.buzzle.buzzle.quiz.api.dto.response.QuizResultResDto;
+import java.util.List;
 import shop.buzzle.buzzle.quiz.application.QuizService;
 
 @RestController
@@ -38,13 +41,16 @@ public class QuizController implements QuizDocs{
                 quizService.askForAdvice(quizSizeReqDto));
     }
 
-    @GetMapping("/correct-answer")
-    public RspTemplate<Boolean> chooseCorrectAnswer(@CurrentUserEmail String email) {
-        return new RspTemplate<>(HttpStatus.OK, "정답 선택 완료", quizService.chooseTheCorrectAnswer(email));
+    @PostMapping("/answer")
+    public RspTemplate<Boolean> submitAnswer(@CurrentUserEmail String email,
+                                           @RequestBody QuizAnswerReqDto quizAnswerReqDto) {
+        boolean isCorrect = quizService.chooseTheCorrectAnswer(email, quizAnswerReqDto);
+        String message = isCorrect ? "정답입니다!" : "오답입니다.";
+        return new RspTemplate<>(HttpStatus.OK, message, isCorrect);
     }
 
-    @GetMapping("/incorrect-answer")
-    public RspTemplate<Boolean> chooseIncorrectAnswer(@CurrentUserEmail String email) {
-        return new RspTemplate<>(HttpStatus.OK, "오답 선택 완료", quizService.chooseTheIncorrectAnswer(email));
+    @GetMapping("/incorrect-notes")
+    public RspTemplate<List<QuizResultResDto>> getIncorrectNotes(@CurrentUserEmail String email) {
+        return new RspTemplate<>(HttpStatus.OK, "오답노트 조회 완료", quizService.getIncorrectAnswers(email));
     }
 }
