@@ -44,10 +44,10 @@ public class MemberController implements MemberDocs {
         return new RspTemplate<>(HttpStatus.OK, "회원 조회 성공", memberService.getMemberByEmail(email));
     }
 
-    @PostMapping("/image-update")
-    public RspTemplate<Void> updateMemberImage(@CurrentUserEmail String email,
-                                               @RequestBody AccessTokenRequest accessToken) {
-        return new RspTemplate<>(HttpStatus.OK, "회원 이미지 업데이트 성공",
-                memberProfileUpdaterService.updateProfileImage(email, accessToken));
-    }
+//    @PostMapping("/image-update")
+//    public RspTemplate<Void> updateMemberImage(@CurrentUserEmail String email,
+//                                               @RequestBody AccessTokenRequest accessToken) {
+//        return new RspTemplate<>(HttpStatus.OK, "회원 이미지 업데이트 성공",
+//                memberProfileUpdaterService.updateProfileImage(email, accessToken));
+//    }
 }
