@@ -5,6 +5,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.web.socket.config.annotation.*;
 import org.springframework.web.socket.messaging.StompSubProtocolErrorHandler;
+import shop.buzzle.buzzle.websocket.interceptor.CustomHandshakeHandler;
 import shop.buzzle.buzzle.websocket.interceptor.WebsocketHandshakeInterceptor;
 
 @Configuration
@@ -20,7 +21,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
         // 클라이언트가 구독할 경로 (브로커 메시지 전달)
-        config.enableSimpleBroker("/topic");
+        config.enableSimpleBroker("/topic", "/queue");
 
         // 클라이언트가 메시지를 보낼 때 붙이는 prefix (Controller 매핑 대상)
         config.setApplicationDestinationPrefixes("/app");
@@ -33,6 +34,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                 .addEndpoint("/chat")
                 .setAllowedOriginPatterns("*")
                 .addInterceptors(new WebsocketHandshakeInterceptor(secretKey))
+                .setHandshakeHandler(new CustomHandshakeHandler())
                 .withSockJS(); // SockJS fallback 지원
     }
 }
