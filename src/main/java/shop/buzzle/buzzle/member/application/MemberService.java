@@ -37,6 +37,22 @@ public class MemberService {
     public MemberInfoResDto getMemberByEmail(String email) {
         Member member = memberRepository.findByEmail(email).orElseThrow(MemberNotFoundException::new);
 
-        return MemberInfoResDto.from(member);
+        long daysSinceCreation = java.time.temporal.ChronoUnit.DAYS.between(
+            member.getCreatedAt().toLocalDate(),
+            java.time.LocalDate.now()
+        );
+
+        Long rankingLong = memberRepository.findMemberRankingByStreak(member.getId());
+        int currentRanking = rankingLong != null ? rankingLong.intValue() : 1;
+
+        return MemberInfoResDto.builder()
+                .picture(member.getPicture())
+                .email(member.getEmail())
+                .name(member.getName())
+                .streak(member.getStreak())
+                .createAt(member.getCreatedAt())
+                .daysSinceCreation(daysSinceCreation)
+                .currentRanking(currentRanking)
+                .build();
     }
 }

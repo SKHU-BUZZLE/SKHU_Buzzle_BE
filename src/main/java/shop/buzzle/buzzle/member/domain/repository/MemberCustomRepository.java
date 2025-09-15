@@ -5,4 +5,5 @@ import shop.buzzle.buzzle.member.domain.Member;
 
 public interface MemberCustomRepository {
     List<Member> findTop10ByStreak();
+    Long findMemberRankingByStreak(Long memberId);
 }

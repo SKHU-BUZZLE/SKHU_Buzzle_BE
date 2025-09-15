@@ -22,4 +22,17 @@ public class MemberCustomRepositoryImpl implements MemberCustomRepository {
                 .limit(10)
                 .fetch();
     }
+
+    @Override
+    public Long findMemberRankingByStreak(Long memberId) {
+        QMember member = QMember.member;
+        QMember targetMember = new QMember("targetMember");
+
+        return queryFactory
+                .select(member.id.count().add(1))
+                .from(member)
+                .join(targetMember).on(targetMember.id.eq(memberId))
+                .where(member.streak.gt(targetMember.streak))
+                .fetchOne();
+    }
 }
