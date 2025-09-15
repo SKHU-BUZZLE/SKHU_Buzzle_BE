@@ -4,7 +4,7 @@ import lombok.Getter;
 
 @Getter
 public enum QuizScore {
-    PERSONAL_SCORE(1), MULTI_SCORE(10);
+    PERSONAL_SCORE(10), MULTI_SCORE(10);
 
     private final int score;
 
