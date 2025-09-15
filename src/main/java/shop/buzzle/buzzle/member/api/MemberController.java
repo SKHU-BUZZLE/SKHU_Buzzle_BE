@@ -13,8 +13,11 @@ import shop.buzzle.buzzle.member.api.dto.request.AccessTokenRequest;
 import shop.buzzle.buzzle.member.api.dto.response.MemberInfoListDto;
 import shop.buzzle.buzzle.member.api.dto.response.MemberInfoResDto;
 import shop.buzzle.buzzle.member.api.dto.response.MemberLifeResDto;
+import shop.buzzle.buzzle.member.api.dto.response.RankingResDto;
 import shop.buzzle.buzzle.member.application.MemberProfileUpdaterService;
 import shop.buzzle.buzzle.member.application.MemberService;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 
 @RestController
 @RequiredArgsConstructor
@@ -25,8 +28,10 @@ public class MemberController implements MemberDocs {
     final private MemberProfileUpdaterService memberProfileUpdaterService;
 
     @GetMapping("/ranking")
-    public RspTemplate<MemberInfoListDto> getTop10MembersByStreak() {
-        return new RspTemplate<>(HttpStatus.OK, "상위 10등 조회 완료", memberService.getTop10MembersByStreak());
+    public RspTemplate<RankingResDto> getTop10MembersByStreak(
+            @PageableDefault(size = 10) Pageable pageable,
+            @CurrentUserEmail String email) {
+        return new RspTemplate<>(HttpStatus.OK, "랭킹 조회 완료", memberService.getRankingWithPagination(pageable, email));
     }
 
     @GetMapping("/life")
