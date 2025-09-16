@@ -22,15 +22,42 @@ public class SwaggerConfig {
         Info info = new Info()
                 .title("버즐 API")
                 .description("버즐 API 명세서\n\n" +
+                        "## 1대1 매칭 게임 플로우\n\n" +
+                        "### 🎯 랜덤 매칭\n" +
+                        "1. **매칭 큐 참가**: `/api/v1/matching/join` API 호출\n" +
+                        "2. **큐에서 대기**: 2명이 쌓일 때까지 대기\n" +
+                        "3. **자동 매칭**: 2명이 쌓이면 리스너가 자동으로 큐에서 제거\n" +
+                        "4. **SSE 메시지**: 각 플레이어에게 `roomId`가 포함된 SSE 메시지 전송\n" +
+                        "5. **WebSocket 연결**: 받은 `roomId`로 `/topic/game/{roomId}` 구독\n\n" +
+                        "### 👥 친구 초대 매칭\n" +
+                        "1. **방 생성 & 초대 코드 생성**: API 호출로 초대 코드 획득\n" +
+                        "2. **방장 입장**: 초대 코드로 처음 입장하는 유저가 방장이 됨\n" +
+                        "3. **친구 초대**: 초대 코드를 친구에게 전달\n" +
+                        "4. **친구 참가**: 초대 코드로 입장 (최대 인원까지)\n" +
+                        "5. **게임 이벤트 구독**: 모든 참가자가 `/topic/game/{roomId}` 구독\n" +
+                        "6. **게임 시작**: 방장이 시작 버튼을 눌러 퀴즈 게임 시작\n\n" +
                         "## WebSocket 연결 정보\n" +
                         "- **연결 URL**: wss://dev-buzzle2.store/chat 혹은 운영 서버면 wss://buzzle2.store/chat\n" +
-                        "- **Protocol**: STOMP over WebSocket\n" +
-                        "- **구독 경로**: `/topic/game/{roomId}` (모든 게임 이벤트)\n\n" +
+                        "- **Protocol**: STOMP over WebSocket\n\n" +
+                        "### 🎯 랜덤 매칭 시 구독 경로 (자동 시작)\n" +
+                        "- **SSE 연결**: 매칭 완료 시 roomId 수신용\n" +
+                        "- **게임 이벤트**: `/topic/game/{roomId}` 구독\n" +
+                        "- **자동 게임 시작**: 2명이 구독하면 WSEventListener가 자동으로 게임 시작\n\n" +
+                        "### 👥 친구 초대 매칭 시 구독 경로 (수동 시작)\n" +
+                        "- **1단계**: `/topic/room/{roomId}` 구독 (모든 이벤트 수신용)\n" +
+                        "- **2단계**: `/app/room/join` 메시지 발행 (서버에 참가 알림)\n" +
+                        "- **수동 게임 시작**: 방장이 `/app/room/{roomId}/start` 메시지 발행\n" +
+                        "- **게임 진행**: 계속 `/topic/room/{roomId}` 사용 (퀴즈, 답안, 결과 등)\n\n" +
                         "## WebSocket 이벤트 타입\n\n" +
                         "### 📨 Client → Server (발행)\n" +
-                        "1. **일반 메시지**: `/app/room/{roomId}`\n" +
-                        "2. **게임 메시지**: `/app/game/{roomId}`\n" +
-                        "3. **퀴즈 답안**: `/app/game/{roomId}/answer`(지금 로직상은 퀴즈 답안 전송하는 로직만 있으니 여기로 보내면 됨)\n\n" +
+                        "**랜덤 매칭에서 사용:**\n" +
+                        "1. **퀴즈 답안**: `/app/game/{roomId}/answer`\n\n" +
+                        "**친구 초대 매칭에서 사용:**\n" +
+                        "2. **방 참가**: `/app/room/join` (초대 코드 포함)\n" +
+                        "3. **방 나가기**: `/app/room/{roomId}/leave`\n" +
+                        "4. **게임 시작**: `/app/room/{roomId}/start` (방장만)\n" +
+                        "5. **퀴즈 답안**: `/app/room/{roomId}/answer`\n" +
+                        "6. **재연결**: `/app/room/{roomId}/reconnect`\n\n" +
                         "### 📡 Server → Client (수신 이벤트)\n" +
                         "**PLAYER_JOINED** - 플레이어 입장 시\n" +
                         "```json\n" +
