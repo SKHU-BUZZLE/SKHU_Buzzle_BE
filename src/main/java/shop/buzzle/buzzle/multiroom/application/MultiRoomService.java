@@ -108,14 +108,6 @@ MultiRoomService {
         return buildRoomInfo(room);
     }
 
-    public MultiRoomInfoResDto getRoomInfoByInviteCode(String inviteCode) {
-        String roomId = inviteCodeToRoomId.get(inviteCode);
-        if (roomId == null) {
-            throw new InvalidInviteCodeException();
-        }
-        return getRoomInfo(roomId);
-    }
-
     public void leaveRoom(String roomId, String playerEmail) {
         MultiRoom room = roomsByRoomId.get(roomId);
         if (room == null) {
