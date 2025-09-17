@@ -9,6 +9,8 @@ import io.swagger.v3.oas.models.servers.Server;
 import io.swagger.v3.oas.models.ExternalDocumentation;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.MediaType;
@@ -16,6 +18,12 @@ import org.springframework.http.converter.json.MappingJackson2HttpMessageConvert
 
 @Configuration
 public class SwaggerConfig {
+
+    @Value("${swagger.server-prod}")
+    private String prodServerUrl;
+
+    @Value("${swagger.server-dev}")
+    private String devServerUrl;
 
     @Bean
     public OpenAPI nongDamAPI() {
@@ -129,13 +137,17 @@ public class SwaggerConfig {
                         .scheme("bearer")
                         .bearerFormat("JWT"));
 
-        Server localServer = new Server()
-                .url("https://buzzle2.store")
-                .description("Local Server");
+        Server prodServer = new Server()
+                .url(prodServerUrl)
+                .description("Production Server");
+
+        Server devServer = new Server()
+                .url(devServerUrl)
+                .description("Development Server");
 
         return new OpenAPI()
                 .info(info)
-                .servers(Collections.singletonList(localServer))
+                .servers(List.of(prodServer, devServer))
                 .addSecurityItem(securityRequirement)
                 .components(components);
     }
