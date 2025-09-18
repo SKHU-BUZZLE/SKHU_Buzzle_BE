@@ -182,53 +182,40 @@ public class QuizService {
 
     @Transactional(readOnly = true)
     public RetryQuizResDto getRetryQuiz(String email, Long quizResultId) {
-        Member member = memberRepository.findByEmail(email).orElseThrow(MemberNotFoundException::new);
-        
-        QuizResult quizResult = quizResultRepository.findById(quizResultId)
-                .orElseThrow(QuizResultNotFoundException::new);
-
-        if (!quizResult.getMember().equals(member)) {
-            throw new IllegalArgumentException("해당 퀴즈 결과는 사용자의 것이 아닙니다.");
-        }
-
-        if (quizResult.getIsCorrect()) {
-            throw new IllegalStateException("올바르게 맞춘 문제는 다시 풀 수 없습니다.");
-        }
-
+        QuizResult quizResult = getOwnedIncorrectQuizResultOrThrow(email, quizResultId);
         return RetryQuizResDto.from(quizResult);
     }
 
     @Transactional
     public boolean retryIncorrectQuiz(String email, RetryQuizAnswerReqDto retryQuizAnswerReqDto) {
-        Member member = memberRepository.findByEmail(email).orElseThrow(MemberNotFoundException::new);
-        
-        QuizResult originalQuizResult = quizResultRepository.findById(retryQuizAnswerReqDto.originalQuizId())
-                .orElseThrow(QuizResultNotFoundException::new);
-
-        if (!originalQuizResult.getMember().equals(member)) {
-            throw new IllegalArgumentException("해당 퀴즈 결과는 사용자의 것이 아닙니다.");
-        }
-
-        if (originalQuizResult.getIsCorrect()) {
-            throw new IllegalStateException("올바르게 맞춘 문제는 다시 풀 수 없습니다.");
-        }
-
+        QuizResult originalQuizResult = getOwnedIncorrectQuizResultOrThrow(email, retryQuizAnswerReqDto.originalQuizId());
         originalQuizResult.updateUserAnswer(retryQuizAnswerReqDto.userAnswerNumber());
-
         return originalQuizResult.getIsCorrect();
     }
 
     @Transactional
     public void deleteIncorrectQuiz(String email, Long quizResultId) {
-        Member member = memberRepository.findByEmail(email).orElseThrow(MemberNotFoundException::new);
-        
+        QuizResult quizResult = getOwnedIncorrectQuizResultOrThrow(email, quizResultId);
+        quizResultRepository.delete(quizResult);
+    }
+
+    private Member getMemberOrThrow(String email) {
+        return memberRepository.findByEmail(email)
+                .orElseThrow(MemberNotFoundException::new);
+    }
+
+    private QuizResult getOwnedIncorrectQuizResultOrThrow(String email, Long quizResultId) {
+        Member member = getMemberOrThrow(email);
+
         QuizResult quizResult = quizResultRepository.findById(quizResultId)
                 .orElseThrow(QuizResultNotFoundException::new);
 
         if (!quizResult.getMember().equals(member)) {
             throw new IllegalArgumentException("해당 퀴즈 결과는 사용자의 것이 아닙니다.");
         }
-
-        quizResultRepository.delete(quizResult);
+        if (Boolean.TRUE.equals(quizResult.getIsCorrect())) {
+            throw new IllegalStateException("올바르게 맞춘 문제는 다시 풀 수 없습니다.");
+        }
+        return quizResult;
     }
 }
