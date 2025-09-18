@@ -37,7 +37,25 @@ public class MemberService {
 
         List<MemberInfoResDto> rankings = memberPage.getContent()
                 .stream()
-                .map(MemberInfoResDto::from)
+                .map(member -> {
+                    long daysSinceCreation = DAYS.between(
+                            member.getCreatedAt().toLocalDate(),
+                            LocalDate.now()
+                    ) + 1;
+
+                    Long rankingLong = memberRepository.findMemberRankingByStreak(member.getId());
+                    int currentRanking = rankingLong != null ? rankingLong.intValue() : 1;
+
+                    return MemberInfoResDto.builder()
+                            .picture(member.getPicture())
+                            .email(member.getEmail())
+                            .name(member.getName())
+                            .streak(member.getStreak())
+                            .createAt(member.getCreatedAt())
+                            .daysSinceCreation(daysSinceCreation)
+                            .currentRanking(currentRanking)
+                            .build();
+                })
                 .collect(Collectors.toList());
 
         PageInfoResDto pageInfo = PageInfoResDto.from(memberPage);
