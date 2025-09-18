@@ -100,14 +100,6 @@ MultiRoomService {
         return buildRoomInfo(room);
     }
 
-    public MultiRoomInfoResDto getRoomInfo(String roomId) {
-        MultiRoom room = roomsByRoomId.get(roomId);
-        if (room == null) {
-            throw new MultiRoomNotFoundException();
-        }
-        return buildRoomInfo(room);
-    }
-
     public void leaveRoom(String roomId, String playerEmail) {
         MultiRoom room = roomsByRoomId.get(roomId);
         if (room == null) {

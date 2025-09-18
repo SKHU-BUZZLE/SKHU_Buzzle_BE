@@ -1,5 +1,8 @@
 package shop.buzzle.buzzle.member.application;
 
+import static java.time.temporal.ChronoUnit.DAYS;
+
+import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -22,15 +25,6 @@ import shop.buzzle.buzzle.member.exception.MemberNotFoundException;
 public class MemberService {
 
     private final MemberRepository memberRepository;
-
-    public MemberInfoListDto getTop10MembersByStreak() {
-        List<MemberInfoResDto> memberInfoList = memberRepository.findTop10ByStreak()
-                .stream()
-                .map(MemberInfoResDto::from)
-                .collect(Collectors.toList());
-
-        return MemberInfoListDto.from(memberInfoList);
-    }
 
     public MemberLifeResDto getMemberLife(String email) {
         Member member = memberRepository.findByEmail(email).orElseThrow(MemberNotFoundException::new);
@@ -58,10 +52,10 @@ public class MemberService {
     public MemberInfoResDto getMemberByEmail(String email) {
         Member member = memberRepository.findByEmail(email).orElseThrow(MemberNotFoundException::new);
 
-        long daysSinceCreation = java.time.temporal.ChronoUnit.DAYS.between(
-            member.getCreatedAt().toLocalDate(),
-            java.time.LocalDate.now()
-        );
+        long daysSinceCreation = DAYS.between(
+                member.getCreatedAt().toLocalDate(),
+                LocalDate.now()
+        ) + 1;
 
         Long rankingLong = memberRepository.findMemberRankingByStreak(member.getId());
         int currentRanking = rankingLong != null ? rankingLong.intValue() : 1;

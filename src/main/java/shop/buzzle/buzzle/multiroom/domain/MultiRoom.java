@@ -46,11 +46,11 @@ public class MultiRoom {
         return playerEmails.add(playerEmail);
     }
 
-    public boolean removePlayer(String playerEmail) {
+    public void removePlayer(String playerEmail) {
         if (hostEmail.equals(playerEmail)) {
-            return false;
+            return;
         }
-        return playerEmails.remove(playerEmail);
+        playerEmails.remove(playerEmail);
     }
 
     public boolean isHost(String playerEmail) {

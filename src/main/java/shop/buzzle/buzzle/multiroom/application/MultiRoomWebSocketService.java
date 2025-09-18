@@ -21,7 +21,9 @@ import shop.buzzle.buzzle.quiz.application.QuizService;
 import shop.buzzle.buzzle.quiz.domain.QuizScore;
 import shop.buzzle.buzzle.websocket.api.dto.AnswerRequest;
 import shop.buzzle.buzzle.websocket.api.dto.Question;
+import shop.buzzle.buzzle.game.api.dto.WebSocketAnswerResponse;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -45,12 +47,10 @@ public class MultiRoomWebSocketService {
         try {
             // 널 값 검증
             if (playerEmail == null || playerEmail.trim().isEmpty()) {
-                log.error("❌ [ROOM_JOIN_ERROR] playerEmail is null or empty");
                 throw new IllegalArgumentException("플레이어 이메일이 비어있습니다.");
             }
 
             if (request == null) {
-                log.error("❌ [ROOM_JOIN_ERROR] request is null");
                 throw new IllegalArgumentException("요청 데이터가 비어있습니다.");
             }
 
@@ -59,7 +59,6 @@ public class MultiRoomWebSocketService {
             var roomInfo = multiRoomService.joinRoom(playerEmail, request);
 
             if (roomInfo == null) {
-                log.error("❌ [ROOM_JOIN_ERROR] roomInfo is null");
                 throw new RuntimeException("방 참가 응답이 null입니다.");
             }
 
@@ -136,11 +135,15 @@ public class MultiRoomWebSocketService {
                 roomLocks.remove(roomId);
                 log.info("❌ [ROOM_DISBANDED] Host left, InviteCode: {} disbanded", inviteCode);
             } else {
+                Member player = memberRepository.findByEmail(playerEmail)
+                        .orElse(null);
+                String playerName = player != null ? player.getName() : playerEmail;
+
                 messagingTemplate.convertAndSend(
                         "/topic/room/" + inviteCode,
-                        MultiRoomEventResponse.playerLeft(playerEmail)
+                        MultiRoomEventResponse.playerLeft(playerName)
                 );
-                log.info("✅ [PLAYER_LEFT] Player: {}, InviteCode: {}", playerEmail, inviteCode);
+                log.info("✅ [PLAYER_LEFT] Player: {} ({}), InviteCode: {}", playerName, playerEmail, inviteCode);
             }
         } catch (Exception e) {
             log.error("❌ [LEAVE_ROOM_ERROR] Player: {}, Error: {}", playerEmail, e.getMessage());
@@ -243,6 +246,31 @@ public class MultiRoomWebSocketService {
         );
 
         messagingTemplate.convertAndSend("/topic/room/" + inviteCode, payload);
+
+        // 10초 타이머 시작
+        startQuestionTimer(roomId, inviteCode, 10);
+    }
+
+    private void startQuestionTimer(String roomId, String inviteCode, int seconds) {
+        for (int i = seconds; i > 0; i--) {
+            final int currentSecond = i;
+            CompletableFuture.delayedExecutor(seconds - i, TimeUnit.SECONDS).execute(() -> {
+                Map<String, Object> timerPayload = Map.of(
+                    "type", "TIMER",
+                    "remainingTime", currentSecond
+                );
+                messagingTemplate.convertAndSend("/topic/room/" + inviteCode, timerPayload);
+            });
+        }
+
+        // 10초 후 시간 종료 메시지
+        CompletableFuture.delayedExecutor(seconds, TimeUnit.SECONDS).execute(() -> {
+            Map<String, Object> timeUpPayload = Map.of(
+                "type", "TIME_UP",
+                "message", "시간이 종료되었습니다!"
+            );
+            messagingTemplate.convertAndSend("/topic/room/" + inviteCode, timeUpPayload);
+        });
     }
 
     @Transactional
@@ -274,13 +302,13 @@ public class MultiRoomWebSocketService {
                     displayName, inviteCode, answerRequest.questionIndex() + 1, answerRequest.index() + 1, isCorrect);
 
             // ANSWER_RESULT 이벤트 전송
-            Map<String, Object> answerResultPayload = Map.of(
-                "type", "ANSWER_RESULT",
-                "message", (isCorrect ? displayName + "님이 정답을 맞혔습니다!" : displayName + "님이 오답을 선택했습니다."),
-                "correctIndex", correctIndex,
-                "correct", isCorrect
+            WebSocketAnswerResponse answerResponse = WebSocketAnswerResponse.of(
+                displayName,
+                isCorrect,
+                String.valueOf(correctIndex),
+                String.valueOf(answerRequest.index())
             );
-            messagingTemplate.convertAndSend("/topic/room/" + inviteCode, answerResultPayload);
+            messagingTemplate.convertAndSend("/topic/room/" + inviteCode, answerResponse);
 
             if (!isCorrect) return;
 
@@ -291,10 +319,25 @@ public class MultiRoomWebSocketService {
             }
 
             // LEADERBOARD 이벤트 전송
+            String currentLeaderEmail = session.getCurrentLeader();
+            String currentLeaderName = currentLeaderEmail != null ?
+                memberRepository.findByEmail(currentLeaderEmail)
+                    .map(Member::getName)
+                    .orElse(currentLeaderEmail) : null;
+
+            // 점수를 이름으로 변환
+            Map<String, Integer> nameScores = new HashMap<>();
+            for (Map.Entry<String, Integer> entry : session.getCurrentScores().entrySet()) {
+                String name = memberRepository.findByEmail(entry.getKey())
+                    .map(Member::getName)
+                    .orElse(entry.getKey());
+                nameScores.put(name, entry.getValue());
+            }
+
             Map<String, Object> leaderboardPayload = Map.of(
                 "type", "LEADERBOARD",
-                "currentLeader", session.getCurrentLeader(),
-                "scores", session.getCurrentScores()
+                "currentLeader", currentLeaderName,
+                "scores", nameScores
             );
             messagingTemplate.convertAndSend("/topic/room/" + inviteCode, leaderboardPayload);
 
@@ -339,7 +382,7 @@ public class MultiRoomWebSocketService {
             Map<String, Object> gameEndPayload = Map.of(
                 "type", "GAME_END",
                 "message", "게임이 종료되었습니다! 우승자: " + member.getName(),
-                "winner", winner
+                "winner", member.getName()
             );
             messagingTemplate.convertAndSend("/topic/room/" + inviteCode, gameEndPayload);
         } else {

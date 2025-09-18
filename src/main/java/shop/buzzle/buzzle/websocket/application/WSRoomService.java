@@ -70,6 +70,31 @@ public class WSRoomService {
                         session.getCurrentQuestionIndex()
                 )
         );
+
+        // 10초 타이머 시작
+        startQuestionTimer(roomId, 10);
+    }
+
+    private void startQuestionTimer(String roomId, int seconds) {
+        for (int i = seconds; i > 0; i--) {
+            final int currentSecond = i;
+            CompletableFuture.delayedExecutor(seconds - i, TimeUnit.SECONDS).execute(() -> {
+                Map<String, Object> timerPayload = Map.of(
+                    "type", "TIMER",
+                    "remainingTime", currentSecond
+                );
+                messagingTemplate.convertAndSend("/topic/game/" + roomId, timerPayload);
+            });
+        }
+
+        // 10초 후 시간 종료 메시지
+        CompletableFuture.delayedExecutor(seconds, TimeUnit.SECONDS).execute(() -> {
+            Map<String, Object> timeUpPayload = Map.of(
+                "type", "TIME_UP",
+                "message", "시간이 종료되었습니다!"
+            );
+            messagingTemplate.convertAndSend("/topic/game/" + roomId, timeUpPayload);
+        });
     }
 
 
@@ -93,9 +118,10 @@ public class WSRoomService {
                     .orElseThrow(MemberNotFoundException::new);
             String displayName = member.getName();
 
+            int correctIndex = Integer.parseInt(current.answerIndex()) - 1;
             messagingTemplate.convertAndSend(
                     "/topic/game/" + roomId,
-                    WebSocketAnswerResponse.of(displayName, isCorrect, current.answerIndex())
+                    WebSocketAnswerResponse.of(displayName, isCorrect, String.valueOf(correctIndex), String.valueOf(submittedIndex))
             );
 
             if (!isCorrect) return;
@@ -105,10 +131,12 @@ public class WSRoomService {
 
             // 정답 처리 후 현재 리더보드 정보 전송
             String currentLeader = session.getCurrentLeader();
+            Member cyrrentLeaderMember = memberRepository.findByEmail(currentLeader)
+                    .orElseThrow(MemberNotFoundException::new);
             Map<String, Integer> currentScores = session.getCurrentScores();
             messagingTemplate.convertAndSend(
                     "/topic/game/" + roomId,
-                    LeaderboardResponse.of(currentLeader, currentScores)
+                    LeaderboardResponse.of(cyrrentLeaderMember.getName(), currentScores)
             );
 
             if (session.tryNextQuestion()) {
@@ -141,7 +169,7 @@ public class WSRoomService {
 
         messagingTemplate.convertAndSend(
                 "/topic/game/" + roomId,
-                WebSocketGameEndResponse.of(winner)
+                WebSocketGameEndResponse.of(member.getName())
         );
 
         sessionMap.remove(roomId);

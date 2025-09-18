@@ -125,6 +125,21 @@ public class SwaggerConfig {
                         "  \"type\": \"LOADING\",\n" +
                         "  \"message\": \"3초 후 다음 문제가 전송됩니다.\"\n" +
                         "}\n" +
+                        "```\n\n" +
+                        "**TIMER** - 문제 타이머 카운트다운 시\n" +
+                        "```json\n" +
+                        "{\n" +
+                        "  \"type\": \"TIMER\",\n" +
+                        "  \"remainingTime\": 10\n" +
+                        "}\n" +
+                        "```\n" +
+                        "※ remainingTime은 10부터 1까지 1초마다 감소\n\n" +
+                        "**TIME_UP** - 문제 시간 종료 시\n" +
+                        "```json\n" +
+                        "{\n" +
+                        "  \"type\": \"TIME_UP\",\n" +
+                        "  \"message\": \"시간이 종료되었습니다!\"\n" +
+                        "}\n" +
                         "```")
                 .version("1.0.0");
 
