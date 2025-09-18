@@ -23,6 +23,7 @@ import shop.buzzle.buzzle.websocket.api.dto.AnswerRequest;
 import shop.buzzle.buzzle.websocket.api.dto.Question;
 import shop.buzzle.buzzle.game.api.dto.WebSocketAnswerResponse;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -134,11 +135,15 @@ public class MultiRoomWebSocketService {
                 roomLocks.remove(roomId);
                 log.info("❌ [ROOM_DISBANDED] Host left, InviteCode: {} disbanded", inviteCode);
             } else {
+                Member player = memberRepository.findByEmail(playerEmail)
+                        .orElse(null);
+                String playerName = player != null ? player.getName() : playerEmail;
+
                 messagingTemplate.convertAndSend(
                         "/topic/room/" + inviteCode,
-                        MultiRoomEventResponse.playerLeft(playerEmail)
+                        MultiRoomEventResponse.playerLeft(playerName)
                 );
-                log.info("✅ [PLAYER_LEFT] Player: {}, InviteCode: {}", playerEmail, inviteCode);
+                log.info("✅ [PLAYER_LEFT] Player: {} ({}), InviteCode: {}", playerName, playerEmail, inviteCode);
             }
         } catch (Exception e) {
             log.error("❌ [LEAVE_ROOM_ERROR] Player: {}, Error: {}", playerEmail, e.getMessage());
@@ -289,10 +294,25 @@ public class MultiRoomWebSocketService {
             }
 
             // LEADERBOARD 이벤트 전송
+            String currentLeaderEmail = session.getCurrentLeader();
+            String currentLeaderName = currentLeaderEmail != null ?
+                memberRepository.findByEmail(currentLeaderEmail)
+                    .map(Member::getName)
+                    .orElse(currentLeaderEmail) : null;
+
+            // 점수를 이름으로 변환
+            Map<String, Integer> nameScores = new HashMap<>();
+            for (Map.Entry<String, Integer> entry : session.getCurrentScores().entrySet()) {
+                String name = memberRepository.findByEmail(entry.getKey())
+                    .map(Member::getName)
+                    .orElse(entry.getKey());
+                nameScores.put(name, entry.getValue());
+            }
+
             Map<String, Object> leaderboardPayload = Map.of(
                 "type", "LEADERBOARD",
-                "currentLeader", session.getCurrentLeader(),
-                "scores", session.getCurrentScores()
+                "currentLeader", currentLeaderName,
+                "scores", nameScores
             );
             messagingTemplate.convertAndSend("/topic/room/" + inviteCode, leaderboardPayload);
 
@@ -337,7 +357,7 @@ public class MultiRoomWebSocketService {
             Map<String, Object> gameEndPayload = Map.of(
                 "type", "GAME_END",
                 "message", "게임이 종료되었습니다! 우승자: " + member.getName(),
-                "winner", winner
+                "winner", member.getName()
             );
             messagingTemplate.convertAndSend("/topic/room/" + inviteCode, gameEndPayload);
         } else {

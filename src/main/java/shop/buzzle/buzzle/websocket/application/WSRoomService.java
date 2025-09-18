@@ -93,9 +93,10 @@ public class WSRoomService {
                     .orElseThrow(MemberNotFoundException::new);
             String displayName = member.getName();
 
+            int correctIndex = Integer.parseInt(current.answerIndex()) - 1;
             messagingTemplate.convertAndSend(
                     "/topic/game/" + roomId,
-                    WebSocketAnswerResponse.of(displayName, isCorrect, current.answerIndex(), String.valueOf(submittedIndex))
+                    WebSocketAnswerResponse.of(displayName, isCorrect, String.valueOf(correctIndex), String.valueOf(submittedIndex))
             );
 
             if (!isCorrect) return;
@@ -105,10 +106,12 @@ public class WSRoomService {
 
             // 정답 처리 후 현재 리더보드 정보 전송
             String currentLeader = session.getCurrentLeader();
+            Member cyrrentLeaderMember = memberRepository.findByEmail(currentLeader)
+                    .orElseThrow(MemberNotFoundException::new);
             Map<String, Integer> currentScores = session.getCurrentScores();
             messagingTemplate.convertAndSend(
                     "/topic/game/" + roomId,
-                    LeaderboardResponse.of(currentLeader, currentScores)
+                    LeaderboardResponse.of(cyrrentLeaderMember.getName(), currentScores)
             );
 
             if (session.tryNextQuestion()) {
@@ -141,7 +144,7 @@ public class WSRoomService {
 
         messagingTemplate.convertAndSend(
                 "/topic/game/" + roomId,
-                WebSocketGameEndResponse.of(winner)
+                WebSocketGameEndResponse.of(member.getName())
         );
 
         sessionMap.remove(roomId);

@@ -45,8 +45,8 @@ public record MultiRoomEventResponse(
     }
 
     // 플레이어 퇴장 알림
-    public static MultiRoomEventResponse playerLeft(String playerEmail) {
-        return new MultiRoomEventResponse("PLAYER_LEFT", playerEmail + "님이 퇴장했습니다.", Map.of("email", playerEmail));
+    public static MultiRoomEventResponse playerLeft(String playerName) {
+        return new MultiRoomEventResponse("PLAYER_LEFT", playerName + "님이 퇴장했습니다.", Map.of("name", playerName));
     }
 
     // 게임 시작
