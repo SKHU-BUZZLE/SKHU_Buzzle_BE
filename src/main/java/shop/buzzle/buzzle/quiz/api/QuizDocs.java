@@ -11,12 +11,14 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import shop.buzzle.buzzle.global.template.RspTemplate;
 import shop.buzzle.buzzle.quiz.api.dto.request.QuizAnswerReqDto;
 import shop.buzzle.buzzle.quiz.api.dto.request.QuizSizeReqDto;
+import shop.buzzle.buzzle.quiz.api.dto.request.RetryQuizAnswerReqDto;
 import shop.buzzle.buzzle.quiz.api.dto.response.QuizResListDto;
 import shop.buzzle.buzzle.quiz.api.dto.response.QuizResultResDto;
+import shop.buzzle.buzzle.quiz.api.dto.response.RetryQuizResDto;
 
 import java.util.List;
 
-@Tag(name = "퀴즈 API", description = "퀴즈 문제 생성, 답안 제출, 오답노트 조회 등의 기능을 제공합니다.")
+@Tag(name = "퀴즈 API", description = "퀴즈 문제 생성, 답안 제출, 오답노트 조회 및 재시도 등의 기능을 제공합니다.")
 public interface QuizDocs {
 
     @Operation(
@@ -179,5 +181,127 @@ public interface QuizDocs {
     RspTemplate<List<QuizResultResDto>> getIncorrectNotes(
             @Parameter(description = "로그인한 유저의 이메일 (토큰에서 자동 추출)", hidden = true)
             String email
+    );
+
+    @Operation(
+            summary = "재시도할 퀴즈 조회",
+            description = "특정 오답 문제의 상세 정보를 조회하여 다시 풀 수 있도록 합니다.",
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "재시도 퀴즈 조회 성공",
+                            content = @Content(
+                                    schema = @Schema(implementation = RetryQuizResDto.class),
+                                    examples = @ExampleObject(
+                                            name = "재시도 퀴즈 응답 예시",
+                                            value = """
+                                                    {
+                                                      "code": "200",
+                                                      "message": "OK",
+                                                      "data": {
+                                                        "originalQuizId": 102,
+                                                        "question": "고래는 물고기인가요?",
+                                                        "option1": "네",
+                                                        "option2": "아니요",
+                                                        "option3": "상황에 따라 다름",
+                                                        "option4": "모르겠어요",
+                                                        "correctAnswer": "2",
+                                                        "category": "SCIENCE"
+                                                      }
+                                                    }
+                                                    """
+                                    )
+                            )
+                    )
+            }
+    )
+    RspTemplate<RetryQuizResDto> getRetryQuiz(
+            @Parameter(description = "로그인한 유저의 이메일 (토큰에서 자동 추출)", hidden = true)
+            String email,
+            @Parameter(description = "재시도할 퀴즈 결과 ID", required = true)
+            Long quizResultId
+    );
+
+    @Operation(
+            summary = "오답 문제 재시도",
+            description = "이전에 틀린 문제에 대해 다시 답안을 제출합니다.",
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "재시도 결과 반환",
+                            content = @Content(
+                                    schema = @Schema(implementation = Boolean.class),
+                                    examples = @ExampleObject(
+                                            name = "재시도 응답 예시",
+                                            value = """
+                                                    {
+                                                      "code": "200",
+                                                      "message": "재도전 성공! 정답입니다!",
+                                                      "data": true
+                                                    }
+                                                    """
+                                    )
+                            )
+                    )
+            }
+    )
+    RspTemplate<Boolean> retryIncorrectQuiz(
+            @Parameter(description = "로그인한 유저의 이메일 (토큰에서 자동 추출)", hidden = true)
+            String email,
+            @RequestBody(
+                    description = "재시도 답안 제출 요청",
+                    required = true,
+                    content = @Content(
+                            schema = @Schema(implementation = RetryQuizAnswerReqDto.class),
+                            examples = @ExampleObject(
+                                    name = "재시도 답안 제출 예시",
+                                    value = """
+                                            {
+                                              "originalQuizId": 102,
+                                              "userAnswerNumber": "2"
+                                            }
+                                            """
+                            )
+                    )
+            )
+            RetryQuizAnswerReqDto retryQuizAnswerReqDto
+    );
+
+    @Operation(
+            summary = "오답노트 퀴즈 삭제",
+            description = "오답노트에서 특정 퀴즈 결과를 삭제합니다.",
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "퀴즈 삭제 성공",
+                            content = @Content(
+                                    schema = @Schema(implementation = Void.class),
+                                    examples = @ExampleObject(
+                                            name = "퀴즈 삭제 응답 예시",
+                                            value = """
+                                                    {
+                                                      "code": "200",
+                                                      "message": "오답노트에서 삭제 완료",
+                                                      "data": null
+                                                    }
+                                                    """
+                                    )
+                            )
+                    ),
+                    @ApiResponse(
+                            responseCode = "404",
+                            description = "존재하지 않는 퀴즈 결과"
+                    ),
+                    @ApiResponse(
+                            responseCode = "403",
+                            description = "본인의 퀴즈 결과가 아님"
+                    )
+            }
+    )
+    RspTemplate<Void> deleteIncorrectQuiz(
+            @Parameter(description = "로그인한 유저의 이메일 (토큰에서 자동 추출)", hidden = true)
+            String email,
+            @Parameter(description = "삭제할 퀴즈 결과 ID", required = true)
+            Long quizResultId
     );
 }

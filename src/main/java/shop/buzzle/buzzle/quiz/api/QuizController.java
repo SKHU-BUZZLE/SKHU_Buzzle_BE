@@ -2,7 +2,9 @@ package shop.buzzle.buzzle.quiz.api;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -12,9 +14,11 @@ import shop.buzzle.buzzle.global.template.RspTemplate;
 import shop.buzzle.buzzle.quiz.api.dto.request.QuizAnswerReqDto;
 import shop.buzzle.buzzle.quiz.api.dto.request.QuizReqDto;
 import shop.buzzle.buzzle.quiz.api.dto.request.QuizSizeReqDto;
+import shop.buzzle.buzzle.quiz.api.dto.request.RetryQuizAnswerReqDto;
 import shop.buzzle.buzzle.quiz.api.dto.response.QuizResDto;
 import shop.buzzle.buzzle.quiz.api.dto.response.QuizResListDto;
 import shop.buzzle.buzzle.quiz.api.dto.response.QuizResultResDto;
+import shop.buzzle.buzzle.quiz.api.dto.response.RetryQuizResDto;
 import java.util.List;
 import shop.buzzle.buzzle.quiz.application.QuizService;
 
@@ -44,5 +48,26 @@ public class QuizController implements QuizDocs{
     @GetMapping("/incorrect-notes")
     public RspTemplate<List<QuizResultResDto>> getIncorrectNotes(@CurrentUserEmail String email) {
         return new RspTemplate<>(HttpStatus.OK, "오답노트 조회 완료", quizService.getIncorrectAnswers(email));
+    }
+
+    @GetMapping("/incorrect-notes/{quizResultId}/retry")
+    public RspTemplate<RetryQuizResDto> getRetryQuiz(@CurrentUserEmail String email, 
+                                                   @PathVariable Long quizResultId) {
+        return new RspTemplate<>(HttpStatus.OK, "재시도할 퀴즈 조회 완료", quizService.getRetryQuiz(email, quizResultId));
+    }
+
+    @PostMapping("/incorrect-notes/retry")
+    public RspTemplate<Boolean> retryIncorrectQuiz(@CurrentUserEmail String email,
+                                                 @RequestBody RetryQuizAnswerReqDto retryQuizAnswerReqDto) {
+        boolean isCorrect = quizService.retryIncorrectQuiz(email, retryQuizAnswerReqDto);
+        String message = isCorrect ? "재도전 성공! 정답입니다!" : "재도전했지만 아직 오답입니다.";
+        return new RspTemplate<>(HttpStatus.OK, message, isCorrect);
+    }
+
+    @DeleteMapping("/incorrect-notes/{quizResultId}")
+    public RspTemplate<Void> deleteIncorrectQuiz(@CurrentUserEmail String email,
+                                               @PathVariable Long quizResultId) {
+        quizService.deleteIncorrectQuiz(email, quizResultId);
+        return new RspTemplate<>(HttpStatus.OK, "오답노트에서 삭제 완료", null);
     }
 }

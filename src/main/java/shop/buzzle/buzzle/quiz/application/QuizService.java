@@ -16,12 +16,15 @@ import shop.buzzle.buzzle.member.domain.repository.MemberRepository;
 import shop.buzzle.buzzle.member.exception.MemberNotFoundException;
 import shop.buzzle.buzzle.quiz.api.dto.request.QuizAnswerReqDto;
 import shop.buzzle.buzzle.quiz.api.dto.request.QuizSizeReqDto;
+import shop.buzzle.buzzle.quiz.api.dto.request.RetryQuizAnswerReqDto;
 import shop.buzzle.buzzle.quiz.api.dto.response.QuizResDto;
 import shop.buzzle.buzzle.quiz.api.dto.response.QuizResListDto;
 import shop.buzzle.buzzle.quiz.api.dto.response.QuizResultResDto;
+import shop.buzzle.buzzle.quiz.api.dto.response.RetryQuizResDto;
 import shop.buzzle.buzzle.quiz.domain.QuizResult;
 import shop.buzzle.buzzle.quiz.domain.QuizScore;
 import shop.buzzle.buzzle.quiz.domain.repository.QuizResultRepository;
+import shop.buzzle.buzzle.quiz.exception.QuizResultNotFoundException;
 
 @Slf4j
 @Service
@@ -175,5 +178,57 @@ public class QuizService {
         return incorrectResults.stream()
                 .map(QuizResultResDto::from)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public RetryQuizResDto getRetryQuiz(String email, Long quizResultId) {
+        Member member = memberRepository.findByEmail(email).orElseThrow(MemberNotFoundException::new);
+        
+        QuizResult quizResult = quizResultRepository.findById(quizResultId)
+                .orElseThrow(QuizResultNotFoundException::new);
+
+        if (!quizResult.getMember().equals(member)) {
+            throw new IllegalArgumentException("해당 퀴즈 결과는 사용자의 것이 아닙니다.");
+        }
+
+        if (quizResult.getIsCorrect()) {
+            throw new IllegalStateException("올바르게 맞춘 문제는 다시 풀 수 없습니다.");
+        }
+
+        return RetryQuizResDto.from(quizResult);
+    }
+
+    @Transactional
+    public boolean retryIncorrectQuiz(String email, RetryQuizAnswerReqDto retryQuizAnswerReqDto) {
+        Member member = memberRepository.findByEmail(email).orElseThrow(MemberNotFoundException::new);
+        
+        QuizResult originalQuizResult = quizResultRepository.findById(retryQuizAnswerReqDto.originalQuizId())
+                .orElseThrow(QuizResultNotFoundException::new);
+
+        if (!originalQuizResult.getMember().equals(member)) {
+            throw new IllegalArgumentException("해당 퀴즈 결과는 사용자의 것이 아닙니다.");
+        }
+
+        if (originalQuizResult.getIsCorrect()) {
+            throw new IllegalStateException("올바르게 맞춘 문제는 다시 풀 수 없습니다.");
+        }
+
+        originalQuizResult.updateUserAnswer(retryQuizAnswerReqDto.userAnswerNumber());
+
+        return originalQuizResult.getIsCorrect();
+    }
+
+    @Transactional
+    public void deleteIncorrectQuiz(String email, Long quizResultId) {
+        Member member = memberRepository.findByEmail(email).orElseThrow(MemberNotFoundException::new);
+        
+        QuizResult quizResult = quizResultRepository.findById(quizResultId)
+                .orElseThrow(QuizResultNotFoundException::new);
+
+        if (!quizResult.getMember().equals(member)) {
+            throw new IllegalArgumentException("해당 퀴즈 결과는 사용자의 것이 아닙니다.");
+        }
+
+        quizResultRepository.delete(quizResult);
     }
 }
