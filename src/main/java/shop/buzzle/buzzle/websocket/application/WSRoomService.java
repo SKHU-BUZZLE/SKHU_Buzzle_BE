@@ -95,7 +95,7 @@ public class WSRoomService {
 
             messagingTemplate.convertAndSend(
                     "/topic/game/" + roomId,
-                    WebSocketAnswerResponse.of(displayName, isCorrect, current.answerIndex())
+                    WebSocketAnswerResponse.of(displayName, isCorrect, current.answerIndex(), String.valueOf(submittedIndex))
             );
 
             if (!isCorrect) return;

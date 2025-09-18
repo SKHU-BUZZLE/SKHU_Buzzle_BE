@@ -21,6 +21,7 @@ import shop.buzzle.buzzle.quiz.application.QuizService;
 import shop.buzzle.buzzle.quiz.domain.QuizScore;
 import shop.buzzle.buzzle.websocket.api.dto.AnswerRequest;
 import shop.buzzle.buzzle.websocket.api.dto.Question;
+import shop.buzzle.buzzle.game.api.dto.WebSocketAnswerResponse;
 
 import java.util.List;
 import java.util.Map;
@@ -45,12 +46,10 @@ public class MultiRoomWebSocketService {
         try {
             // 널 값 검증
             if (playerEmail == null || playerEmail.trim().isEmpty()) {
-                log.error("❌ [ROOM_JOIN_ERROR] playerEmail is null or empty");
                 throw new IllegalArgumentException("플레이어 이메일이 비어있습니다.");
             }
 
             if (request == null) {
-                log.error("❌ [ROOM_JOIN_ERROR] request is null");
                 throw new IllegalArgumentException("요청 데이터가 비어있습니다.");
             }
 
@@ -59,7 +58,6 @@ public class MultiRoomWebSocketService {
             var roomInfo = multiRoomService.joinRoom(playerEmail, request);
 
             if (roomInfo == null) {
-                log.error("❌ [ROOM_JOIN_ERROR] roomInfo is null");
                 throw new RuntimeException("방 참가 응답이 null입니다.");
             }
 
@@ -274,13 +272,13 @@ public class MultiRoomWebSocketService {
                     displayName, inviteCode, answerRequest.questionIndex() + 1, answerRequest.index() + 1, isCorrect);
 
             // ANSWER_RESULT 이벤트 전송
-            Map<String, Object> answerResultPayload = Map.of(
-                "type", "ANSWER_RESULT",
-                "message", (isCorrect ? displayName + "님이 정답을 맞혔습니다!" : displayName + "님이 오답을 선택했습니다."),
-                "correctIndex", correctIndex,
-                "correct", isCorrect
+            WebSocketAnswerResponse answerResponse = WebSocketAnswerResponse.of(
+                displayName,
+                isCorrect,
+                String.valueOf(correctIndex),
+                String.valueOf(answerRequest.index())
             );
-            messagingTemplate.convertAndSend("/topic/room/" + inviteCode, answerResultPayload);
+            messagingTemplate.convertAndSend("/topic/room/" + inviteCode, answerResponse);
 
             if (!isCorrect) return;
 
