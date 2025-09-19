@@ -372,6 +372,7 @@ public class MultiRoomWebSocketService {
 
             // ANSWER_RESULT 이벤트 전송
             WebSocketAnswerResponse answerResponse = WebSocketAnswerResponse.of(
+                email,
                 displayName,
                 isCorrect,
                 String.valueOf(correctIndex),
@@ -394,19 +395,22 @@ public class MultiRoomWebSocketService {
                     .map(Member::getName)
                     .orElse(currentLeaderEmail) : null;
 
-            // 점수를 이름으로 변환
-            Map<String, Integer> nameScores = new HashMap<>();
-            for (Map.Entry<String, Integer> entry : session.getCurrentScores().entrySet()) {
-                String name = memberRepository.findByEmail(entry.getKey())
-                    .map(Member::getName)
-                    .orElse(entry.getKey());
-                nameScores.put(name, entry.getValue());
+            Map<String, Integer> currentScores = session.getCurrentScores();
+
+            // 이메일 -> 이름 매핑 생성
+            Map<String, String> emailToName = new HashMap<>();
+            for (String userEmail : currentScores.keySet()) {
+                Member user = memberRepository.findByEmail(userEmail)
+                        .orElseThrow(MemberNotFoundException::new);
+                emailToName.put(userEmail, user.getName());
             }
 
             Map<String, Object> leaderboardPayload = Map.of(
                 "type", "LEADERBOARD",
                 "currentLeader", currentLeaderName,
-                "scores", nameScores
+                "currentLeaderEmail", currentLeaderEmail,
+                "scores", currentScores,
+                "emailToName", emailToName
             );
             messagingTemplate.convertAndSend("/topic/room/" + inviteCode, leaderboardPayload);
 
@@ -464,7 +468,8 @@ public class MultiRoomWebSocketService {
             Map<String, Object> gameEndPayload = Map.of(
                 "type", "GAME_END",
                 "message", "게임이 종료되었습니다! 우승자: " + member.getName() + ". 방이 해체됩니다.",
-                "winner", member.getName()
+                "winner", member.getName(),
+                "winnerEmail", winner
             );
             messagingTemplate.convertAndSend("/topic/room/" + inviteCode, gameEndPayload);
         } else {

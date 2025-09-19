@@ -162,7 +162,6 @@ public class WSRoomService {
         }
     }
 
-
     @Transactional
     public void receiveAnswer(String roomId, String email, AnswerRequest answerRequest) {
         GameSession session = sessionMap.get(roomId);
@@ -186,7 +185,7 @@ public class WSRoomService {
             int correctIndex = Integer.parseInt(current.answerIndex()) - 1;
             messagingTemplate.convertAndSend(
                     "/topic/game/" + roomId,
-                    WebSocketAnswerResponse.of(displayName, isCorrect, String.valueOf(correctIndex), String.valueOf(submittedIndex))
+                    WebSocketAnswerResponse.of(email, displayName, isCorrect, String.valueOf(correctIndex), String.valueOf(submittedIndex))
             );
 
             if (!isCorrect) return;
@@ -195,13 +194,22 @@ public class WSRoomService {
             if (!accepted) return;
 
             // 정답 처리 후 현재 리더보드 정보 전송
-            String currentLeader = session.getCurrentLeader();
-            Member cyrrentLeaderMember = memberRepository.findByEmail(currentLeader)
+            String currentLeaderEmail = session.getCurrentLeader();
+            Member currentLeaderMember = memberRepository.findByEmail(currentLeaderEmail)
                     .orElseThrow(MemberNotFoundException::new);
             Map<String, Integer> currentScores = session.getCurrentScores();
+
+            // 이메일 -> 이름 매핑 생성
+            Map<String, String> emailToName = new java.util.HashMap<>();
+            for (String userEmail : currentScores.keySet()) {
+                Member user = memberRepository.findByEmail(userEmail)
+                        .orElseThrow(MemberNotFoundException::new);
+                emailToName.put(userEmail, user.getName());
+            }
+
             messagingTemplate.convertAndSend(
                     "/topic/game/" + roomId,
-                    LeaderboardResponse.of(cyrrentLeaderMember.getName(), currentScores)
+                    LeaderboardResponse.of(currentLeaderEmail, currentLeaderMember.getName(), currentScores, emailToName)
             );
 
             if (session.tryNextQuestion()) {
@@ -245,7 +253,7 @@ public class WSRoomService {
 
         messagingTemplate.convertAndSend(
                 "/topic/game/" + roomId,
-                WebSocketGameEndResponse.of(member.getName())
+                WebSocketGameEndResponse.of(winner, member.getName())
         );
 
         sessionMap.remove(roomId);
