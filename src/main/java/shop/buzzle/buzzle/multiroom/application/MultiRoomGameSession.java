@@ -15,7 +15,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class MultiRoomGameSession {
     private final String roomId;
     private final List<Question> questions;
-    private final Set<String> playerEmails;
+    private final List<String> playerEmails;
     private final QuizCategory category;
 
     private int currentQuestionIndex = 0;
@@ -26,10 +26,10 @@ public class MultiRoomGameSession {
     private final AtomicBoolean transitionLock = new AtomicBoolean(false);
 
     public MultiRoomGameSession(String roomId, List<Question> questions,
-                               Set<String> playerEmails, QuizCategory category) {
+                               List<String> playerEmails, QuizCategory category) {
         this.roomId = roomId;
         this.questions = questions;
-        this.playerEmails = Set.copyOf(playerEmails);
+        this.playerEmails = List.copyOf(playerEmails);
         this.category = category;
 
         for (String email : playerEmails) {

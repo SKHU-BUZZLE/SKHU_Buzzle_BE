@@ -4,8 +4,9 @@ import lombok.Getter;
 import shop.buzzle.buzzle.quiz.domain.QuizCategory;
 
 import java.time.LocalDateTime;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Collections;
 
 @Getter
 public class MultiRoom {
@@ -17,7 +18,7 @@ public class MultiRoom {
     private final int quizCount;
     private final LocalDateTime createdAt;
 
-    private final Set<String> playerEmails = ConcurrentHashMap.newKeySet();
+    private final List<String> playerEmails = Collections.synchronizedList(new ArrayList<>());
     private boolean gameStarted = false;
 
     public MultiRoom(String roomId, String inviteCode, 
@@ -43,7 +44,11 @@ public class MultiRoom {
         if (playerEmails.size() >= maxPlayers) {
             return false;
         }
-        return playerEmails.add(playerEmail);
+        if (playerEmails.contains(playerEmail)) {
+            return false;
+        }
+        playerEmails.add(playerEmail);
+        return true;
     }
 
     public void removePlayer(String playerEmail) {
@@ -72,8 +77,8 @@ public class MultiRoom {
         return playerEmails.size();
     }
 
-    public Set<String> getPlayerEmails() {
-        return Set.copyOf(playerEmails);
+    public List<String> getPlayerEmails() {
+        return List.copyOf(playerEmails);
     }
 
     public boolean isFull() {
