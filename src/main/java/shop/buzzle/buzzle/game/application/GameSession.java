@@ -18,6 +18,7 @@ public class GameSession {
 
     private final AtomicBoolean correctAnswered = new AtomicBoolean(false); // ✅ 오직 1명만 정답 인정
     private final AtomicBoolean transitionLock = new AtomicBoolean(false);  // ✅ 문제 전환 중복 방지
+    private final AtomicBoolean timerRunning = new AtomicBoolean(false);    // ✅ 타이머 중복 방지
 
     public GameSession(List<Question> questions) {
         this.questions = questions;
@@ -45,6 +46,7 @@ public class GameSession {
         if (transitionLock.compareAndSet(false, true)) {
             currentQuestionIndex++;
             correctAnswered.set(false);
+            timerRunning.set(false);
             if (currentQuestionIndex >= questions.size()) {
                 finished = true;
             }
@@ -52,6 +54,22 @@ public class GameSession {
             return true;
         }
         return false;
+    }
+
+    public boolean tryStartTimer() {
+        return timerRunning.compareAndSet(false, true);
+    }
+
+    public void stopTimer() {
+        timerRunning.set(false);
+    }
+
+    public boolean isTimerRunning() {
+        return timerRunning.get();
+    }
+
+    public int getTotalQuestions() {
+        return questions.size();
     }
 
     public void addCorrectAnswer(String username) {
