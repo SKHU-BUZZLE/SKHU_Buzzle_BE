@@ -292,26 +292,34 @@ public class MultiRoomWebSocketService {
             );
             messagingTemplate.convertAndSend("/topic/room/" + inviteCode, timeUpPayload);
 
-            // 시간 초과로 다음 문제로 넘어가기 (마지막 문제가 아닌 경우)
-            if (!session.isFinished() && session.getCurrentQuestionIndex() < session.getTotalQuestions() - 1) {
+            // 시간 초과 처리
+            if (!session.isFinished()) {
                 roomLocks.putIfAbsent(roomId, new Object());
                 synchronized (roomLocks.get(roomId)) {
-                    if (session.tryNextQuestion()) {
-                        if (session.isFinished()) {
-                            handleMultiRoomGameEnd(roomId, session);
-                            roomLocks.remove(roomId);
-                        } else {
-                            Map<String, Object> loadingPayload = Map.of(
-                                "type", "LOADING",
-                                "message", "3초 후 다음 문제가 전송됩니다."
-                            );
-                            messagingTemplate.convertAndSend("/topic/room/" + inviteCode, loadingPayload);
+                    // 마지막 문제인 경우 바로 게임 종료
+                    if (session.getCurrentQuestionIndex() >= session.getTotalQuestions() - 1) {
+                        session.tryNextQuestion(); // 게임을 finished 상태로 만들기
+                        handleMultiRoomGameEnd(roomId, session);
+                        roomLocks.remove(roomId);
+                    } else {
+                        // 마지막 문제가 아닌 경우 다음 문제로
+                        if (session.tryNextQuestion()) {
+                            if (session.isFinished()) {
+                                handleMultiRoomGameEnd(roomId, session);
+                                roomLocks.remove(roomId);
+                            } else {
+                                Map<String, Object> loadingPayload = Map.of(
+                                    "type", "LOADING",
+                                    "message", "3초 후 다음 문제가 전송됩니다."
+                                );
+                                messagingTemplate.convertAndSend("/topic/room/" + inviteCode, loadingPayload);
 
-                            scheduler.schedule(() -> {
-                                synchronized (roomLocks.get(roomId)) {
-                                    sendCurrentQuestion(roomId);
-                                }
-                            }, 3, TimeUnit.SECONDS);
+                                scheduler.schedule(() -> {
+                                    synchronized (roomLocks.get(roomId)) {
+                                        sendCurrentQuestion(roomId);
+                                    }
+                                }, 3, TimeUnit.SECONDS);
+                            }
                         }
                     }
                 }
