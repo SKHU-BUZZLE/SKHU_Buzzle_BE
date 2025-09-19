@@ -196,6 +196,7 @@ MultiRoomService {
                     return new MultiRoomInfoResDto.PlayerInfoDto(
                             member.getEmail(),
                             member.getName(),
+                            member.getPicture() != null ? member.getPicture() : "",
                             room.isHost(email)
                     );
                 })

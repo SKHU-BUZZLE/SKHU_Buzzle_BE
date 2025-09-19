@@ -18,6 +18,7 @@ public record MultiRoomInfoResDto(
     public record PlayerInfoDto(
             String email,
             String name,
+            String picture,
             boolean isHost
     ) {}
 }
