@@ -5,9 +5,11 @@ import java.util.Map;
 public record LeaderboardResponse(
         String type,
         String currentLeader,
-        Map<String, Integer> scores
+        String currentLeaderEmail,
+        Map<String, Integer> scores,
+        Map<String, String> emailToName
 ) {
-    public static LeaderboardResponse of(String currentLeader, Map<String, Integer> scores) {
-        return new LeaderboardResponse("LEADERBOARD", currentLeader, scores);
+    public static LeaderboardResponse of(String currentLeaderEmail, String currentLeader, Map<String, Integer> scores, Map<String, String> emailToName) {
+        return new LeaderboardResponse("LEADERBOARD", currentLeader, currentLeaderEmail, scores, emailToName);
     }
 }

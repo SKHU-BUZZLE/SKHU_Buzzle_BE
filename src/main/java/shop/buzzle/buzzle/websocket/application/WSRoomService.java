@@ -21,11 +21,10 @@ import shop.buzzle.buzzle.websocket.api.dto.Question;
 import shop.buzzle.buzzle.websocket.api.dto.LeaderboardResponse;
 import shop.buzzle.buzzle.websocket.api.dto.PlayerJoinedResponse;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 @Service
 @RequiredArgsConstructor
@@ -36,6 +35,8 @@ public class WSRoomService {
     private final SimpMessageSendingOperations messagingTemplate;
     private final Map<String, GameSession> sessionMap = new ConcurrentHashMap<>();
     private final Map<String, Object> roomLocks = new ConcurrentHashMap<>();
+    private final Map<String, List<ScheduledFuture<?>>> roomTimers = new ConcurrentHashMap<>();
+    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(10);
 
     public void startGame(String roomId) {
         List<QuizResDto> quizzes = quizService
@@ -71,32 +72,95 @@ public class WSRoomService {
                 )
         );
 
-        // 10초 타이머 시작
-        startQuestionTimer(roomId, 10);
+        // 타이머가 이미 실행 중이 아닌 경우에만 시작
+        if (session.tryStartTimer()) {
+            startQuestionTimer(roomId, 10);
+        }
     }
 
     private void startQuestionTimer(String roomId, int seconds) {
+        GameSession session = sessionMap.get(roomId);
+        if (session == null) return;
+
+        // 기존 타이머들 취소
+        cancelRoomTimers(roomId);
+
+        List<ScheduledFuture<?>> timerTasks = new ArrayList<>();
+
+        // 타이머 카운트다운 스케줄
         for (int i = seconds; i > 0; i--) {
             final int currentSecond = i;
-            CompletableFuture.delayedExecutor(seconds - i, TimeUnit.SECONDS).execute(() -> {
+            ScheduledFuture<?> timerTask = scheduler.schedule(() -> {
+                // 세션이 끝났거나 타이머가 중단되었으면 타이머 중단
+                if (session.isFinished() || !session.isTimerRunning()) return;
+
                 Map<String, Object> timerPayload = Map.of(
                     "type", "TIMER",
                     "remainingTime", currentSecond
                 );
                 messagingTemplate.convertAndSend("/topic/game/" + roomId, timerPayload);
-            });
+            }, seconds - i, TimeUnit.SECONDS);
+
+            timerTasks.add(timerTask);
         }
 
-        // 10초 후 시간 종료 메시지
-        CompletableFuture.delayedExecutor(seconds, TimeUnit.SECONDS).execute(() -> {
+        // 시간 종료 스케줄
+        ScheduledFuture<?> timeUpTask = scheduler.schedule(() -> {
+            // 세션이 끝났거나 타이머가 중단되었으면 시간 종료 처리하지 않음
+            if (session.isFinished() || !session.isTimerRunning()) return;
+
             Map<String, Object> timeUpPayload = Map.of(
                 "type", "TIME_UP",
                 "message", "시간이 종료되었습니다!"
             );
             messagingTemplate.convertAndSend("/topic/game/" + roomId, timeUpPayload);
-        });
+
+            // 시간 초과 처리
+            if (!session.isFinished()) {
+                roomLocks.putIfAbsent(roomId, new Object());
+                synchronized (roomLocks.get(roomId)) {
+                    // 마지막 문제인 경우 바로 게임 종료
+                    if (session.getCurrentQuestionIndex() >= session.getTotalQuestions() - 1) {
+                        session.tryNextQuestion(); // 게임을 finished 상태로 만들기
+                        handleGameEnd(roomId, session);
+                        roomLocks.remove(roomId);
+                    } else {
+                        // 마지막 문제가 아닌 경우 다음 문제로
+                        if (session.tryNextQuestion()) {
+                            if (session.isFinished()) {
+                                handleGameEnd(roomId, session);
+                                roomLocks.remove(roomId);
+                            } else {
+                                broadcastToRoom(roomId, "LOADING", "3초 후 다음 문제가 전송됩니다.");
+                                scheduler.schedule(() -> {
+                                    synchronized (roomLocks.get(roomId)) {
+                                        GameSession currentSession = sessionMap.get(roomId);
+                                        if (currentSession != null && !currentSession.isFinished()) {
+                                            sendCurrentQuestion(roomId);
+                                        }
+                                    }
+                                }, 3, TimeUnit.SECONDS);
+                            }
+                        }
+                    }
+                }
+            }
+        }, seconds, TimeUnit.SECONDS);
+
+        timerTasks.add(timeUpTask);
+
+        // 방별 타이머 저장
+        roomTimers.put(roomId, timerTasks);
     }
 
+    private void cancelRoomTimers(String roomId) {
+        List<ScheduledFuture<?>> timers = roomTimers.remove(roomId);
+        if (timers != null) {
+            for (ScheduledFuture<?> timer : timers) {
+                timer.cancel(false);
+            }
+        }
+    }
 
     @Transactional
     public void receiveAnswer(String roomId, String email, AnswerRequest answerRequest) {
@@ -121,7 +185,7 @@ public class WSRoomService {
             int correctIndex = Integer.parseInt(current.answerIndex()) - 1;
             messagingTemplate.convertAndSend(
                     "/topic/game/" + roomId,
-                    WebSocketAnswerResponse.of(displayName, isCorrect, String.valueOf(correctIndex), String.valueOf(submittedIndex))
+                    WebSocketAnswerResponse.of(email, displayName, isCorrect, String.valueOf(correctIndex), String.valueOf(submittedIndex))
             );
 
             if (!isCorrect) return;
@@ -130,29 +194,49 @@ public class WSRoomService {
             if (!accepted) return;
 
             // 정답 처리 후 현재 리더보드 정보 전송
-            String currentLeader = session.getCurrentLeader();
-            Member cyrrentLeaderMember = memberRepository.findByEmail(currentLeader)
+            String currentLeaderEmail = session.getCurrentLeader();
+            Member currentLeaderMember = memberRepository.findByEmail(currentLeaderEmail)
                     .orElseThrow(MemberNotFoundException::new);
             Map<String, Integer> currentScores = session.getCurrentScores();
+
+            // 이메일 -> 이름 매핑 생성
+            Map<String, String> emailToName = new java.util.HashMap<>();
+            for (String userEmail : currentScores.keySet()) {
+                Member user = memberRepository.findByEmail(userEmail)
+                        .orElseThrow(MemberNotFoundException::new);
+                emailToName.put(userEmail, user.getName());
+            }
+
             messagingTemplate.convertAndSend(
                     "/topic/game/" + roomId,
-                    LeaderboardResponse.of(cyrrentLeaderMember.getName(), currentScores)
+                    LeaderboardResponse.of(currentLeaderEmail, currentLeaderMember.getName(), currentScores, emailToName)
             );
 
             if (session.tryNextQuestion()) {
+                // 다음 문제로 넘어갈 때 현재 타이머 즉시 중단
+                session.stopTimer();
+                cancelRoomTimers(roomId);
+
                 if (session.isFinished()) {
                     handleGameEnd(roomId, session);
                     roomLocks.remove(roomId);
                 } else {
+                    // 타이머 중단 알림
+                    Map<String, Object> timerStopPayload = Map.of(
+                        "type", "TIMER_STOP",
+                        "message", "정답! 다음 문제로 이동합니다."
+                    );
+                    messagingTemplate.convertAndSend("/topic/game/" + roomId, timerStopPayload);
+
                     broadcastToRoom(roomId, "LOADING", "3초 후 다음 문제가 전송됩니다.");
-                    CompletableFuture.delayedExecutor(3, TimeUnit.SECONDS).execute(() -> {
+                    scheduler.schedule(() -> {
                         synchronized (roomLocks.get(roomId)) {
                             GameSession currentSession = sessionMap.get(roomId);
                             if (currentSession != null && !currentSession.isFinished()) {
                                 sendCurrentQuestion(roomId);
                             }
                         }
-                    });
+                    }, 3, TimeUnit.SECONDS);
                 }
             }
         }
@@ -169,10 +253,11 @@ public class WSRoomService {
 
         messagingTemplate.convertAndSend(
                 "/topic/game/" + roomId,
-                WebSocketGameEndResponse.of(member.getName())
+                WebSocketGameEndResponse.of(winner, member.getName())
         );
 
         sessionMap.remove(roomId);
+        cancelRoomTimers(roomId);
     }
 
     public void broadcastToRoom(String roomId, String type, String message) {

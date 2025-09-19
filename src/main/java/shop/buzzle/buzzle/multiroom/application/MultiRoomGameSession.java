@@ -24,6 +24,7 @@ public class MultiRoomGameSession {
 
     private final AtomicBoolean correctAnswered = new AtomicBoolean(false);
     private final AtomicBoolean transitionLock = new AtomicBoolean(false);
+    private final AtomicBoolean timerRunning = new AtomicBoolean(false);
 
     public MultiRoomGameSession(String roomId, List<Question> questions,
                                List<String> playerEmails, QuizCategory category) {
@@ -62,6 +63,7 @@ public class MultiRoomGameSession {
         if (transitionLock.compareAndSet(false, true)) {
             currentQuestionIndex++;
             correctAnswered.set(false);
+            timerRunning.set(false);
             if (currentQuestionIndex >= questions.size()) {
                 finished = true;
             }
@@ -69,6 +71,18 @@ public class MultiRoomGameSession {
             return true;
         }
         return false;
+    }
+
+    public boolean tryStartTimer() {
+        return timerRunning.compareAndSet(false, true);
+    }
+
+    public void stopTimer() {
+        timerRunning.set(false);
+    }
+
+    public boolean isTimerRunning() {
+        return timerRunning.get();
     }
 
     public void addCorrectAnswer(String playerEmail) {
