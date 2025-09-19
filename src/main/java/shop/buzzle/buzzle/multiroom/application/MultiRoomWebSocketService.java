@@ -12,6 +12,7 @@ import shop.buzzle.buzzle.member.domain.repository.MemberRepository;
 import shop.buzzle.buzzle.member.exception.MemberNotFoundException;
 import shop.buzzle.buzzle.multiroom.api.dto.request.MultiRoomJoinReqDto;
 import shop.buzzle.buzzle.multiroom.api.dto.response.MultiRoomEventResponse;
+import shop.buzzle.buzzle.multiroom.api.dto.response.GameEndResponseDto;
 import shop.buzzle.buzzle.multiroom.domain.MultiRoom;
 import shop.buzzle.buzzle.multiroom.event.MultiRoomGameStartEvent;
 import shop.buzzle.buzzle.multiroom.exception.MultiRoomNotFoundException;
@@ -455,32 +456,32 @@ public class MultiRoomWebSocketService {
         if (room == null) return;
 
         String inviteCode = room.getInviteCode();
-        String winner = session.getWinner();
 
+        // 랭킹 데이터 생성
+        Map<String, Integer> scores = session.getCurrentScores();
+        List<String> allPlayerEmails = room.getPlayerEmails();
+        GameEndResponseDto.GameEndData gameEndData = multiRoomService.createGameEndRanking(scores, allPlayerEmails);
+
+        // 우승자에게 점수 부여
+        String winner = session.getWinner();
         if (winner != null) {
             Member member = memberRepository.findByEmail(winner)
                     .orElseThrow(MemberNotFoundException::new);
-
             member.incrementStreak(QuizScore.MULTI_SCORE.getScore());
-
-            log.info("🏆 [GAME_WINNER] Room: {}, Winner: {}", inviteCode, member.getName());
-
-            Map<String, Object> gameEndPayload = Map.of(
-                "type", "GAME_END",
-                "message", "게임이 종료되었습니다! 우승자: " + member.getName() + ". 방이 해체됩니다.",
-                "winner", member.getName(),
-                "winnerEmail", winner
-            );
-            messagingTemplate.convertAndSend("/topic/room/" + inviteCode, gameEndPayload);
-        } else {
-            log.info("🤝 [GAME_TIE] Room: {}, No clear winner", inviteCode);
-
-            Map<String, Object> gameEndPayload = Map.of(
-                "type", "GAME_END",
-                "message", "게임이 종료되었습니다! 무승부입니다. 방이 해체됩니다."
-            );
-            messagingTemplate.convertAndSend("/topic/room/" + inviteCode, gameEndPayload);
         }
+
+        // 로그 출력
+        if (gameEndData.hasTie()) {
+            log.info("🤝 [GAME_TIE] Room: {}, Multiple winners with same score", inviteCode);
+        } else if (winner != null) {
+            Member member = memberRepository.findByEmail(winner)
+                    .orElseThrow(MemberNotFoundException::new);
+            log.info("🏆 [GAME_WINNER] Room: {}, Winner: {}", inviteCode, member.getName());
+        }
+
+        // 랭킹 정보와 함께 게임 종료 메시지 전송
+        MultiRoomEventResponse gameEndResponse = MultiRoomEventResponse.gameEndWithRanking(gameEndData);
+        messagingTemplate.convertAndSend("/topic/room/" + inviteCode, gameEndResponse);
 
         // 게임 세션 정리
         gameSessions.remove(roomId);
