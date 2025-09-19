@@ -131,6 +131,10 @@ MultiRoomService {
         return roomsByRoomId.get(roomId);
     }
 
+    public void disbandRoomAfterGame(String roomId) {
+        disbandRoom(roomId);
+    }
+
     private void disbandRoom(String roomId) {
         MultiRoom room = roomsByRoomId.remove(roomId);
         if (room != null) {

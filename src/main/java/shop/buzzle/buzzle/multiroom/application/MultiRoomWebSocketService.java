@@ -23,12 +23,11 @@ import shop.buzzle.buzzle.websocket.api.dto.AnswerRequest;
 import shop.buzzle.buzzle.websocket.api.dto.Question;
 import shop.buzzle.buzzle.game.api.dto.WebSocketAnswerResponse;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 @Service
 @RequiredArgsConstructor
@@ -42,6 +41,8 @@ public class MultiRoomWebSocketService {
 
     private final Map<String, MultiRoomGameSession> gameSessions = new ConcurrentHashMap<>();
     private final Map<String, Object> roomLocks = new ConcurrentHashMap<>();
+    private final Map<String, List<ScheduledFuture<?>>> roomTimers = new ConcurrentHashMap<>();
+    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(10);
 
     public void joinRoom(String playerEmail, MultiRoomJoinReqDto request, SimpMessageHeaderAccessor headerAccessor) {
         try {
@@ -133,6 +134,7 @@ public class MultiRoomWebSocketService {
                 );
                 gameSessions.remove(roomId);
                 roomLocks.remove(roomId);
+                cancelRoomTimers(roomId);
                 log.info("❌ [ROOM_DISBANDED] Host left, InviteCode: {} disbanded", inviteCode);
             } else {
                 Member player = memberRepository.findByEmail(playerEmail)
@@ -247,30 +249,89 @@ public class MultiRoomWebSocketService {
 
         messagingTemplate.convertAndSend("/topic/room/" + inviteCode, payload);
 
-        // 10초 타이머 시작
-        startQuestionTimer(roomId, inviteCode, 10);
+        // 타이머가 이미 실행 중이 아닌 경우에만 시작
+        if (session.tryStartTimer()) {
+            startQuestionTimer(roomId, inviteCode, 10);
+        }
     }
 
     private void startQuestionTimer(String roomId, String inviteCode, int seconds) {
+        MultiRoomGameSession session = gameSessions.get(roomId);
+        if (session == null) return;
+
+        // 기존 타이머들 취소
+        cancelRoomTimers(roomId);
+
+        List<ScheduledFuture<?>> timerTasks = new ArrayList<>();
+
+        // 타이머 카운트다운 스케줄
         for (int i = seconds; i > 0; i--) {
             final int currentSecond = i;
-            CompletableFuture.delayedExecutor(seconds - i, TimeUnit.SECONDS).execute(() -> {
+            ScheduledFuture<?> timerTask = scheduler.schedule(() -> {
+                // 세션이 끝났거나 타이머가 중단되었으면 타이머 중단
+                if (session.isFinished() || !session.isTimerRunning()) return;
+
                 Map<String, Object> timerPayload = Map.of(
                     "type", "TIMER",
                     "remainingTime", currentSecond
                 );
                 messagingTemplate.convertAndSend("/topic/room/" + inviteCode, timerPayload);
-            });
+            }, seconds - i, TimeUnit.SECONDS);
+
+            timerTasks.add(timerTask);
         }
 
-        // 10초 후 시간 종료 메시지
-        CompletableFuture.delayedExecutor(seconds, TimeUnit.SECONDS).execute(() -> {
+        // 시간 종료 스케줄
+        ScheduledFuture<?> timeUpTask = scheduler.schedule(() -> {
+            // 세션이 끝났거나 타이머가 중단되었으면 시간 종료 처리하지 않음
+            if (session.isFinished() || !session.isTimerRunning()) return;
+
             Map<String, Object> timeUpPayload = Map.of(
                 "type", "TIME_UP",
                 "message", "시간이 종료되었습니다!"
             );
             messagingTemplate.convertAndSend("/topic/room/" + inviteCode, timeUpPayload);
-        });
+
+            // 시간 초과로 다음 문제로 넘어가기 (마지막 문제가 아닌 경우)
+            if (!session.isFinished() && session.getCurrentQuestionIndex() < session.getTotalQuestions() - 1) {
+                roomLocks.putIfAbsent(roomId, new Object());
+                synchronized (roomLocks.get(roomId)) {
+                    if (session.tryNextQuestion()) {
+                        if (session.isFinished()) {
+                            handleMultiRoomGameEnd(roomId, session);
+                            roomLocks.remove(roomId);
+                        } else {
+                            Map<String, Object> loadingPayload = Map.of(
+                                "type", "LOADING",
+                                "message", "3초 후 다음 문제가 전송됩니다."
+                            );
+                            messagingTemplate.convertAndSend("/topic/room/" + inviteCode, loadingPayload);
+
+                            scheduler.schedule(() -> {
+                                synchronized (roomLocks.get(roomId)) {
+                                    sendCurrentQuestion(roomId);
+                                }
+                            }, 3, TimeUnit.SECONDS);
+                        }
+                    }
+                }
+            }
+        }, seconds, TimeUnit.SECONDS);
+
+        timerTasks.add(timeUpTask);
+
+        // 방별 타이머 저장
+        roomTimers.put(roomId, timerTasks);
+    }
+
+    private void cancelRoomTimers(String roomId) {
+        List<ScheduledFuture<?>> timers = roomTimers.remove(roomId);
+        if (timers != null) {
+            for (ScheduledFuture<?> timer : timers) {
+                timer.cancel(false);
+            }
+            log.info("⏹️ [TIMERS_CANCELLED] Room: {} - {} timers cancelled", roomId, timers.size());
+        }
     }
 
     @Transactional
@@ -342,6 +403,10 @@ public class MultiRoomWebSocketService {
             messagingTemplate.convertAndSend("/topic/room/" + inviteCode, leaderboardPayload);
 
             if (session.tryNextQuestion()) {
+                // 다음 문제로 넘어갈 때 현재 타이머 즉시 중단
+                session.stopTimer();
+                cancelRoomTimers(roomId);
+
                 if (session.isFinished()) {
                     log.info("🏁 [GAME_FINISHED] Room: {}, Moving to game end", inviteCode);
                     handleMultiRoomGameEnd(roomId, session);
@@ -349,16 +414,25 @@ public class MultiRoomWebSocketService {
                 } else {
                     log.info("⏭️ [NEXT_QUESTION] Room: {}, Question {}/{} completed, preparing next question",
                             inviteCode, session.getCurrentQuestionIndex(), session.getTotalQuestions());
+
+                    // 타이머 중단 알림
+                    Map<String, Object> timerStopPayload = Map.of(
+                        "type", "TIMER_STOP",
+                        "message", "정답! 다음 문제로 이동합니다."
+                    );
+                    messagingTemplate.convertAndSend("/topic/room/" + inviteCode, timerStopPayload);
+
                     Map<String, Object> loadingPayload = Map.of(
                         "type", "LOADING",
                         "message", "3초 후 다음 문제가 전송됩니다."
                     );
                     messagingTemplate.convertAndSend("/topic/room/" + inviteCode, loadingPayload);
-                    CompletableFuture.delayedExecutor(3, TimeUnit.SECONDS).execute(() -> {
+
+                    scheduler.schedule(() -> {
                         synchronized (roomLocks.get(roomId)) {
                             sendCurrentQuestion(roomId);
                         }
-                    });
+                    }, 3, TimeUnit.SECONDS);
                 }
             }
         }
@@ -381,16 +455,30 @@ public class MultiRoomWebSocketService {
 
             Map<String, Object> gameEndPayload = Map.of(
                 "type", "GAME_END",
-                "message", "게임이 종료되었습니다! 우승자: " + member.getName(),
+                "message", "게임이 종료되었습니다! 우승자: " + member.getName() + ". 방이 해체됩니다.",
                 "winner", member.getName()
             );
             messagingTemplate.convertAndSend("/topic/room/" + inviteCode, gameEndPayload);
         } else {
             log.info("🤝 [GAME_TIE] Room: {}, No clear winner", inviteCode);
+
+            Map<String, Object> gameEndPayload = Map.of(
+                "type", "GAME_END",
+                "message", "게임이 종료되었습니다! 무승부입니다. 방이 해체됩니다."
+            );
+            messagingTemplate.convertAndSend("/topic/room/" + inviteCode, gameEndPayload);
         }
 
+        // 게임 세션 정리
         gameSessions.remove(roomId);
-        log.info("✅ [GAME_SESSION_CLEANED] Room: {} game session removed", inviteCode);
+
+        // 타이머 정리
+        cancelRoomTimers(roomId);
+
+        // 방 폭파
+        multiRoomService.disbandRoomAfterGame(roomId);
+
+        log.info("💥 [ROOM_DISBANDED] Room: {} disbanded after game completion", inviteCode);
     }
 
     public void resendCurrentQuestionToUser(String roomId) {
