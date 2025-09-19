@@ -10,6 +10,7 @@ import shop.buzzle.buzzle.multiroom.api.dto.request.MultiRoomCreateReqDto;
 import shop.buzzle.buzzle.multiroom.api.dto.request.MultiRoomJoinReqDto;
 import shop.buzzle.buzzle.multiroom.api.dto.response.MultiRoomCreateResDto;
 import shop.buzzle.buzzle.multiroom.api.dto.response.MultiRoomInfoResDto;
+import shop.buzzle.buzzle.multiroom.api.dto.response.InviteCodeValidationResDto;
 import shop.buzzle.buzzle.multiroom.domain.MultiRoom;
 import shop.buzzle.buzzle.multiroom.exception.MultiRoomFullException;
 import shop.buzzle.buzzle.multiroom.exception.MultiRoomNotFoundException;
@@ -133,6 +134,51 @@ MultiRoomService {
 
     public void disbandRoomAfterGame(String roomId) {
         disbandRoom(roomId);
+    }
+
+    public InviteCodeValidationResDto validateInviteCode(String inviteCode) {
+        // 초대코드로 방 ID 찾기
+        String roomId = inviteCodeToRoomId.get(inviteCode);
+        if (roomId == null) {
+            return InviteCodeValidationResDto.invalid("존재하지 않는 초대코드입니다.");
+        }
+
+        // 방 정보 확인
+        MultiRoom room = roomsByRoomId.get(roomId);
+        if (room == null) {
+            // 초대코드는 있지만 방이 없는 경우 (데이터 일관성 문제)
+            inviteCodeToRoomId.remove(inviteCode);
+            return InviteCodeValidationResDto.invalid("방을 찾을 수 없습니다.");
+        }
+
+        // 게임 시작 여부 확인
+        if (room.isGameStarted()) {
+            return InviteCodeValidationResDto.invalid("이미 게임이 시작된 방입니다.");
+        }
+
+        // 방이 가득 찬 경우
+        if (room.isFull()) {
+            return InviteCodeValidationResDto.invalid("방이 가득 찼습니다.");
+        }
+
+        // 방장 정보 가져오기
+        String hostEmail = room.getHostEmail();
+        String hostName = "알 수 없음";
+        if (hostEmail != null) {
+            hostName = memberRepository.findByEmail(hostEmail)
+                    .map(Member::getName)
+                    .orElse("알 수 없음");
+        }
+
+        return InviteCodeValidationResDto.valid(
+                roomId,
+                inviteCode,
+                hostName,
+                room.getCurrentPlayerCount(),
+                room.getMaxPlayers(),
+                room.getCategory(),
+                room.getQuizCount()
+        );
     }
 
     private void disbandRoom(String roomId) {
