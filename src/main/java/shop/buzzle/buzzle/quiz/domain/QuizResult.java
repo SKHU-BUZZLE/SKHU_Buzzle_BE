@@ -71,4 +71,9 @@ public class QuizResult extends BaseEntity {
                 .isCorrect(isCorrect)
                 .build();
     }
+
+    public void updateUserAnswer(String newUserAnswerNumber) {
+        this.userAnswerNumber = newUserAnswerNumber;
+        this.isCorrect = this.correctAnswerNumber.equals(newUserAnswerNumber);
+    }
 }

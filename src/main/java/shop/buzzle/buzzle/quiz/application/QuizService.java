@@ -16,12 +16,20 @@ import shop.buzzle.buzzle.member.domain.repository.MemberRepository;
 import shop.buzzle.buzzle.member.exception.MemberNotFoundException;
 import shop.buzzle.buzzle.quiz.api.dto.request.QuizAnswerReqDto;
 import shop.buzzle.buzzle.quiz.api.dto.request.QuizSizeReqDto;
+import shop.buzzle.buzzle.quiz.api.dto.request.RetryQuizAnswerReqDto;
 import shop.buzzle.buzzle.quiz.api.dto.response.QuizResDto;
 import shop.buzzle.buzzle.quiz.api.dto.response.QuizResListDto;
 import shop.buzzle.buzzle.quiz.api.dto.response.QuizResultResDto;
+import shop.buzzle.buzzle.quiz.api.dto.response.RetryQuizResDto;
+import shop.buzzle.buzzle.quiz.api.dto.request.IncorrectQuizChallengeReqDto;
+import shop.buzzle.buzzle.quiz.api.dto.response.IncorrectQuizChallengeResDto;
+import shop.buzzle.buzzle.quiz.api.dto.response.IncorrectQuizChallengeResultResDto;
 import shop.buzzle.buzzle.quiz.domain.QuizResult;
 import shop.buzzle.buzzle.quiz.domain.QuizScore;
 import shop.buzzle.buzzle.quiz.domain.repository.QuizResultRepository;
+import shop.buzzle.buzzle.quiz.exception.QuizResultNotFoundException;
+import java.util.Collections;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -175,5 +183,136 @@ public class QuizService {
         return incorrectResults.stream()
                 .map(QuizResultResDto::from)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public RetryQuizResDto getIncorrectQuizDetail(String email, Long quizResultId) {
+        QuizResult quizResult = getOwnedIncorrectQuizResultForView(email, quizResultId);
+        return RetryQuizResDto.from(quizResult);
+    }
+
+    @Transactional
+    public void deleteIncorrectQuiz(String email, Long quizResultId) {
+        QuizResult quizResult = getOwnedIncorrectQuizResultOrThrow(email, quizResultId);
+        quizResultRepository.delete(quizResult);
+    }
+
+    private Member getMemberOrThrow(String email) {
+        return memberRepository.findByEmail(email)
+                .orElseThrow(MemberNotFoundException::new);
+    }
+
+    private QuizResult getOwnedIncorrectQuizResultOrThrow(String email, Long quizResultId) {
+        Member member = getMemberOrThrow(email);
+
+        QuizResult quizResult = quizResultRepository.findById(quizResultId)
+                .orElseThrow(QuizResultNotFoundException::new);
+
+        if (!quizResult.getMember().equals(member)) {
+            throw new IllegalArgumentException("해당 퀴즈 결과는 사용자의 것이 아닙니다.");
+        }
+        if (Boolean.TRUE.equals(quizResult.getIsCorrect())) {
+            throw new IllegalStateException("올바르게 맞춘 문제는 다시 풀 수 없습니다.");
+        }
+        return quizResult;
+    }
+
+    private QuizResult getOwnedIncorrectQuizResultForView(String email, Long quizResultId) {
+        Member member = getMemberOrThrow(email);
+
+        QuizResult quizResult = quizResultRepository.findById(quizResultId)
+                .orElseThrow(QuizResultNotFoundException::new);
+
+        if (!quizResult.getMember().equals(member)) {
+            throw new IllegalArgumentException("해당 퀴즈 결과는 사용자의 것이 아닙니다.");
+        }
+        if (Boolean.TRUE.equals(quizResult.getIsCorrect())) {
+            throw new IllegalArgumentException("이미 정답을 맞춘 문제입니다.");
+        }
+        return quizResult;
+    }
+
+    @Transactional(readOnly = true)
+    public IncorrectQuizChallengeResDto getIncorrectQuizChallenge(String email) {
+        Member member = getMemberOrThrow(email);
+        
+        List<QuizResult> incorrectResults = quizResultRepository.findIncorrectAnswersByMember(member);
+        
+        if (incorrectResults.isEmpty()) {
+            throw new IllegalStateException("재도전할 오답 문제가 없습니다.");
+        }
+        
+        // 7문제를 랜덤으로 선택 (오답 문제가 7개보다 적으면 모든 문제 사용)
+        Collections.shuffle(incorrectResults);
+        List<QuizResult> selectedQuizzes = incorrectResults.stream()
+                .limit(7)
+                .toList();
+        
+        List<IncorrectQuizChallengeResDto.ChallengeQuizDto> challengeQuizzes = selectedQuizzes.stream()
+                .map(quiz -> IncorrectQuizChallengeResDto.ChallengeQuizDto.builder()
+                        .quizResultId(quiz.getId())
+                        .question(quiz.getQuestion())
+                        .option1(quiz.getOption1())
+                        .option2(quiz.getOption2())
+                        .option3(quiz.getOption3())
+                        .option4(quiz.getOption4())
+                        .build())
+                .toList();
+        
+        return IncorrectQuizChallengeResDto.of(challengeQuizzes, 10); // 10초 제한시간
+    }
+
+    @Transactional
+    public IncorrectQuizChallengeResultResDto submitIncorrectQuizChallenge(String email, IncorrectQuizChallengeReqDto request) {
+        Member member = getMemberOrThrow(email);
+        
+        List<IncorrectQuizChallengeResultResDto.QuizResultDto> results = new ArrayList<>();
+        int correctAnswers = 0;
+        int removedFromWrongNotes = 0;
+        
+        for (IncorrectQuizChallengeReqDto.IncorrectQuizAnswerDto answerDto : request.answers()) {
+            QuizResult quizResult = quizResultRepository.findById(answerDto.quizResultId())
+                    .orElseThrow(QuizResultNotFoundException::new);
+            
+            // 본인 문제인지 확인
+            if (!quizResult.getMember().equals(member)) {
+                throw new IllegalArgumentException("해당 퀴즈 결과는 사용자의 것이 아닙니다.");
+            }
+            
+            // 이미 정답인 문제는 스킵
+            if (Boolean.TRUE.equals(quizResult.getIsCorrect())) {
+                continue;
+            }
+            
+            boolean isCorrect = quizResult.getCorrectAnswerNumber().equals(answerDto.userAnswerNumber());
+            boolean removedFromWrongNote = false;
+            
+            if (isCorrect) {
+                correctAnswers++;
+                // 맞힌 문제는 오답노트에서 제거 (삭제)
+                quizResultRepository.delete(quizResult);
+                removedFromWrongNote = true;
+                removedFromWrongNotes++;
+                
+                // 점수 추가 (기존 로직과 동일)
+                member.incrementStreak(QuizScore.PERSONAL_SCORE.getScore());
+            }
+            
+            results.add(IncorrectQuizChallengeResultResDto.QuizResultDto.builder()
+                    .quizResultId(answerDto.quizResultId())
+                    .question(quizResult.getQuestion())
+                    .userAnswer(answerDto.userAnswerNumber())
+                    .correctAnswer(quizResult.getCorrectAnswerNumber())
+                    .isCorrect(isCorrect)
+                    .removedFromWrongNotes(removedFromWrongNote)
+                    .build());
+        }
+        
+        return IncorrectQuizChallengeResultResDto.of(
+                request.answers().size(),
+                correctAnswers,
+                removedFromWrongNotes,
+                results
+        );
     }
 }
