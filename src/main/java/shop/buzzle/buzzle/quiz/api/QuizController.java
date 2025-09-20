@@ -59,14 +59,6 @@ public class QuizController implements QuizDocs{
         return new RspTemplate<>(HttpStatus.OK, "오답 문제 상세 조회 완료", quizService.getIncorrectQuizDetail(email, quizResultId));
     }
 
-    @PostMapping("/incorrect-notes/retry")
-    public RspTemplate<Boolean> retryIncorrectQuiz(@CurrentUserEmail String email,
-                                                 @RequestBody RetryQuizAnswerReqDto retryQuizAnswerReqDto) {
-        boolean isCorrect = quizService.retryIncorrectQuiz(email, retryQuizAnswerReqDto);
-        String message = isCorrect ? "재도전 성공! 정답입니다!" : "재도전했지만 아직 오답입니다.";
-        return new RspTemplate<>(HttpStatus.OK, message, isCorrect);
-    }
-
     @DeleteMapping("/incorrect-notes/{quizResultId}")
     public RspTemplate<Void> deleteIncorrectQuiz(@CurrentUserEmail String email,
                                                @PathVariable Long quizResultId) {

@@ -192,13 +192,6 @@ public class QuizService {
     }
 
     @Transactional
-    public boolean retryIncorrectQuiz(String email, RetryQuizAnswerReqDto retryQuizAnswerReqDto) {
-        QuizResult originalQuizResult = getOwnedIncorrectQuizResultOrThrow(email, retryQuizAnswerReqDto.originalQuizId());
-        originalQuizResult.updateUserAnswer(retryQuizAnswerReqDto.userAnswerNumber());
-        return originalQuizResult.getIsCorrect();
-    }
-
-    @Transactional
     public void deleteIncorrectQuiz(String email, Long quizResultId) {
         QuizResult quizResult = getOwnedIncorrectQuizResultOrThrow(email, quizResultId);
         quizResultRepository.delete(quizResult);

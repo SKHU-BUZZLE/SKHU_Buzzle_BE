@@ -226,51 +226,6 @@ public interface QuizDocs {
     );
 
     @Operation(
-            summary = "오답 문제 재시도",
-            description = "이전에 틀린 문제에 대해 다시 답안을 제출합니다.",
-            responses = {
-                    @ApiResponse(
-                            responseCode = "200",
-                            description = "재시도 결과 반환",
-                            content = @Content(
-                                    schema = @Schema(implementation = Boolean.class),
-                                    examples = @ExampleObject(
-                                            name = "재시도 응답 예시",
-                                            value = """
-                                                    {
-                                                      "code": "200",
-                                                      "message": "재도전 성공! 정답입니다!",
-                                                      "data": true
-                                                    }
-                                                    """
-                                    )
-                            )
-                    )
-            }
-    )
-    RspTemplate<Boolean> retryIncorrectQuiz(
-            @Parameter(description = "로그인한 유저의 이메일 (토큰에서 자동 추출)", hidden = true)
-            String email,
-            @RequestBody(
-                    description = "재시도 답안 제출 요청",
-                    required = true,
-                    content = @Content(
-                            schema = @Schema(implementation = RetryQuizAnswerReqDto.class),
-                            examples = @ExampleObject(
-                                    name = "재시도 답안 제출 예시",
-                                    value = """
-                                            {
-                                              "originalQuizId": 102,
-                                              "userAnswerNumber": "2"
-                                            }
-                                            """
-                            )
-                    )
-            )
-            RetryQuizAnswerReqDto retryQuizAnswerReqDto
-    );
-
-    @Operation(
             summary = "오답노트 퀴즈 삭제",
             description = "오답노트에서 특정 퀴즈 결과를 삭제합니다.",
             responses = {
