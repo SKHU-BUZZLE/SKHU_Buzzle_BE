@@ -1,6 +1,8 @@
 package shop.buzzle.buzzle.quiz.domain.repository;
 
 import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -11,6 +13,9 @@ public interface QuizResultRepository extends JpaRepository<QuizResult, Long> {
 
     @Query("SELECT qr FROM QuizResult qr WHERE qr.member = :member AND qr.isCorrect = false ORDER BY qr.createdAt DESC")
     List<QuizResult> findIncorrectAnswersByMember(@Param("member") Member member);
+
+    @Query("SELECT qr FROM QuizResult qr WHERE qr.member = :member AND qr.isCorrect = false ORDER BY qr.createdAt DESC")
+    Page<QuizResult> findIncorrectAnswersByMemberWithPagination(@Param("member") Member member, Pageable pageable);
 
     @Query("SELECT qr FROM QuizResult qr WHERE qr.member = :member ORDER BY qr.createdAt DESC")
     List<QuizResult> findAllByMemberOrderByCreatedAtDesc(@Param("member") Member member);

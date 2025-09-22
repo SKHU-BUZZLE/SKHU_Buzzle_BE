@@ -9,6 +9,8 @@ import org.springframework.ai.chat.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import shop.buzzle.buzzle.member.domain.Member;
@@ -19,6 +21,7 @@ import shop.buzzle.buzzle.quiz.api.dto.request.QuizSizeReqDto;
 import shop.buzzle.buzzle.quiz.api.dto.request.RetryQuizAnswerReqDto;
 import shop.buzzle.buzzle.quiz.api.dto.response.QuizResDto;
 import shop.buzzle.buzzle.quiz.api.dto.response.QuizResListDto;
+import shop.buzzle.buzzle.quiz.api.dto.response.QuizResultPageResDto;
 import shop.buzzle.buzzle.quiz.api.dto.response.QuizResultResDto;
 import shop.buzzle.buzzle.quiz.api.dto.response.RetryQuizResDto;
 import shop.buzzle.buzzle.quiz.api.dto.request.IncorrectQuizChallengeReqDto;
@@ -186,6 +189,15 @@ public class QuizService {
     }
 
     @Transactional(readOnly = true)
+    public QuizResultPageResDto getIncorrectAnswersWithPagination(String email, Pageable pageable) {
+        Member member = memberRepository.findByEmail(email).orElseThrow(MemberNotFoundException::new);
+
+        Page<QuizResult> incorrectResultsPage = quizResultRepository.findIncorrectAnswersByMemberWithPagination(member, pageable);
+
+        return QuizResultPageResDto.from(incorrectResultsPage);
+    }
+
+    @Transactional(readOnly = true)
     public RetryQuizResDto getIncorrectQuizDetail(String email, Long quizResultId) {
         QuizResult quizResult = getOwnedIncorrectQuizResultForView(email, quizResultId);
         return RetryQuizResDto.from(quizResult);
@@ -293,9 +305,6 @@ public class QuizService {
                 quizResultRepository.delete(quizResult);
                 removedFromWrongNote = true;
                 removedFromWrongNotes++;
-                
-                // 점수 추가 (기존 로직과 동일)
-                member.incrementStreak(QuizScore.PERSONAL_SCORE.getScore());
             }
             
             results.add(IncorrectQuizChallengeResultResDto.QuizResultDto.builder()
