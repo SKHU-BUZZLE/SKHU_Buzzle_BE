@@ -1,5 +1,6 @@
 package shop.buzzle.buzzle.game.application;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,13 +16,23 @@ public class GameSession {
     private int currentQuestionIndex = 0;
     private boolean finished = false;
     private final Map<String, Integer> scores = new HashMap<>();
+    private final List<String> allPlayerEmails = new ArrayList<>();
 
-    private final AtomicBoolean correctAnswered = new AtomicBoolean(false); // ✅ 오직 1명만 정답 인정
-    private final AtomicBoolean transitionLock = new AtomicBoolean(false);  // ✅ 문제 전환 중복 방지
-    private final AtomicBoolean timerRunning = new AtomicBoolean(false);    // ✅ 타이머 중복 방지
+    private final AtomicBoolean correctAnswered = new AtomicBoolean(false); 
+    private final AtomicBoolean transitionLock = new AtomicBoolean(false);  
+    private final AtomicBoolean timerRunning = new AtomicBoolean(false);    
 
     public GameSession(List<Question> questions) {
         this.questions = questions;
+    }
+
+    public GameSession(List<Question> questions, List<String> playerEmails) {
+        this.questions = questions;
+        this.allPlayerEmails.addAll(playerEmails);
+        // 모든 플레이어를 0점으로 초기화
+        for (String email : playerEmails) {
+            scores.put(email, 0);
+        }
     }
 
     public Question getCurrentQuestion() {
@@ -92,5 +103,9 @@ public class GameSession {
 
     public Map<String, Integer> getCurrentScores() {
         return new HashMap<>(scores);
+    }
+
+    public List<String> getAllPlayerEmails() {
+        return allPlayerEmails.isEmpty() ? scores.keySet().stream().toList() : new ArrayList<>(allPlayerEmails);
     }
 }

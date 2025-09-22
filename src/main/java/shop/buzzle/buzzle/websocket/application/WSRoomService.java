@@ -57,6 +57,25 @@ public class WSRoomService {
         sendCurrentQuestion(roomId);
     }
 
+    public void startGame(String roomId, List<String> playerEmails) {
+        List<QuizResDto> quizzes = quizService
+                .askForAdvice(new QuizSizeReqDto(QuizCategory.ALL, 3))
+                .quizResDtos();
+
+        List<Question> questions = quizzes.stream()
+                .map(q -> new Question(
+                        q.question(),
+                        List.of(q.option1(), q.option2(), q.option3(), q.option4()),
+                        q.answer()
+                ))
+                .toList();
+
+        GameSession session = new GameSession(questions, playerEmails);
+        sessionMap.put(roomId, session);
+
+        sendCurrentQuestion(roomId);
+    }
+
     public void sendCurrentQuestion(String roomId) {
         GameSession session = sessionMap.get(roomId);
         if (session == null || session.isFinished()) return;
@@ -244,20 +263,81 @@ public class WSRoomService {
 
 
     private void handleGameEnd(String roomId, GameSession session) {
+        // 랭킹 데이터 생성
+        Map<String, Integer> scores = session.getCurrentScores();
+        List<String> allPlayerEmails = session.getAllPlayerEmails();
+
+        // 플레이어 랭킹 생성
+        List<WebSocketGameEndResponse.PlayerRanking> rankings = createGameEndRanking(scores, allPlayerEmails);
+
+        // 동점 여부 확인
+        boolean hasTie = rankings.size() > 1 &&
+                        rankings.get(0).score() == rankings.get(1).score();
+
+        // 우승자에게 점수 부여
         String winner = session.getWinner();
+        if (winner != null) {
+            Member member = memberRepository.findByEmail(winner)
+                    .orElseThrow(MemberNotFoundException::new);
+            member.incrementStreak(QuizScore.MULTI_SCORE.getScore());
+        }
 
-        Member member = memberRepository.findByEmail(winner)
-                .orElseThrow(MemberNotFoundException::new);
-
-        member.incrementStreak(QuizScore.MULTI_SCORE.getScore());
-
+        // 랭킹 정보와 함께 게임 종료 메시지 전송
         messagingTemplate.convertAndSend(
                 "/topic/game/" + roomId,
-                WebSocketGameEndResponse.of(winner, member.getName())
+                WebSocketGameEndResponse.withRanking(rankings, hasTie)
         );
 
         sessionMap.remove(roomId);
         cancelRoomTimers(roomId);
+    }
+
+    private List<WebSocketGameEndResponse.PlayerRanking> createGameEndRanking(Map<String, Integer> scores, List<String> allPlayerEmails) {
+        List<WebSocketGameEndResponse.PlayerRanking> rankings = new ArrayList<>();
+
+        // 모든 플레이어를 점수별로 정렬
+        List<String> sortedEmails = allPlayerEmails.stream()
+                .sorted((e1, e2) -> {
+                    int score1 = scores.getOrDefault(e1, 0);
+                    int score2 = scores.getOrDefault(e2, 0);
+                    return Integer.compare(score2, score1); // 내림차순
+                })
+                .toList();
+
+        int currentRank = 1;
+        int previousScore = -1;
+        int sameRankCount = 0;
+
+        for (int i = 0; i < sortedEmails.size(); i++) {
+            String email = sortedEmails.get(i);
+            int score = scores.getOrDefault(email, 0);
+
+            Member member = memberRepository.findByEmail(email)
+                    .orElseThrow(() -> new MemberNotFoundException("회원을 찾을 수 없습니다: " + email));
+
+            // 순위 계산
+            if (score != previousScore) {
+                currentRank = i + 1;
+                sameRankCount = 0;
+            } else {
+                sameRankCount++;
+            }
+
+            boolean isWinner = (currentRank == 1);
+
+            rankings.add(new WebSocketGameEndResponse.PlayerRanking(
+                    currentRank,
+                    email,
+                    member.getName(),
+                    member.getPicture(),
+                    score,
+                    isWinner
+            ));
+
+            previousScore = score;
+        }
+
+        return rankings;
     }
 
     public void broadcastToRoom(String roomId, String type, String message) {

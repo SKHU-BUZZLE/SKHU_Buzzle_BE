@@ -87,7 +87,7 @@ public class WSEventListener {
                 if (!startedRooms.contains(roomId)) {
                     startedRooms.add(roomId);
                     log.info("🚀 일반방 {} 게임 시작 조건 충족!", roomId);
-                    wsRoomService.startGame(roomId);
+                    wsRoomService.startGame(roomId, players.stream().toList());
                 }
             }
         } else if (startedRooms.contains(roomId)) {
