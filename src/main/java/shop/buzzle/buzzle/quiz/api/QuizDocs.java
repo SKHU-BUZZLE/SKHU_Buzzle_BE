@@ -13,8 +13,10 @@ import shop.buzzle.buzzle.quiz.api.dto.request.QuizAnswerReqDto;
 import shop.buzzle.buzzle.quiz.api.dto.request.QuizSizeReqDto;
 import shop.buzzle.buzzle.quiz.api.dto.request.RetryQuizAnswerReqDto;
 import shop.buzzle.buzzle.quiz.api.dto.response.QuizResListDto;
+import shop.buzzle.buzzle.quiz.api.dto.response.QuizResultPageResDto;
 import shop.buzzle.buzzle.quiz.api.dto.response.QuizResultResDto;
 import shop.buzzle.buzzle.quiz.api.dto.response.RetryQuizResDto;
+import org.springframework.data.domain.Pageable;
 import shop.buzzle.buzzle.quiz.api.dto.request.IncorrectQuizChallengeReqDto;
 import shop.buzzle.buzzle.quiz.api.dto.response.IncorrectQuizChallengeResDto;
 import shop.buzzle.buzzle.quiz.api.dto.response.IncorrectQuizChallengeResultResDto;
@@ -146,34 +148,41 @@ public interface QuizDocs {
 
     @Operation(
             summary = "오답노트 조회",
-            description = "회원이 이전에 틀린 문제들을 모두 조회합니다.",
+            description = "회원이 이전에 틀린 문제들을 페이지네이션으로 조회합니다.",
             responses = {
                     @ApiResponse(
                             responseCode = "200",
                             description = "오답노트 조회 성공",
                             content = @Content(
-                                    schema = @Schema(implementation = QuizResultResDto.class),
+                                    schema = @Schema(implementation = QuizResultPageResDto.class),
                                     examples = @ExampleObject(
                                             name = "오답노트 응답 예시",
                                             value = """
                                                     {
                                                       "code": "200",
                                                       "message": "OK",
-                                                      "data": [
-                                                        {
-                                                          "id": 102,
-                                                          "question": "고래는 물고기인가요?",
-                                                          "option1": "네",
-                                                          "option2": "아니요",
-                                                          "option3": "상황에 따라 다름",
-                                                          "option4": "모르겠어요",
-                                                          "correctAnswerNumber": "2",
-                                                          "userAnswerNumber": "1",
-                                                          "category": "SCIENCE",
-                                                          "isCorrect": false,
-                                                          "createdAt": "2025-09-15T10:12:34"
+                                                      "data": {
+                                                        "content": [
+                                                          {
+                                                            "id": 102,
+                                                            "question": "고래는 물고기인가요?",
+                                                            "option1": "네",
+                                                            "option2": "아니요",
+                                                            "option3": "상황에 따라 다름",
+                                                            "option4": "모르겠어요",
+                                                            "correctAnswerNumber": "2",
+                                                            "userAnswerNumber": "1",
+                                                            "category": "SCIENCE",
+                                                            "isCorrect": false,
+                                                            "createdAt": "2025-09-15T10:12:34"
+                                                          }
+                                                        ],
+                                                        "pageInfo": {
+                                                          "currentPage": 0,
+                                                          "totalPages": 5,
+                                                          "totalItems": 42
                                                         }
-                                                      ]
+                                                      }
                                                     }
                                                     """
                                     )
@@ -181,9 +190,11 @@ public interface QuizDocs {
                     )
             }
     )
-    RspTemplate<List<QuizResultResDto>> getIncorrectNotes(
+    RspTemplate<QuizResultPageResDto> getIncorrectNotes(
             @Parameter(description = "로그인한 유저의 이메일 (토큰에서 자동 추출)", hidden = true)
-            String email
+            String email,
+            @Parameter(description = "페이지네이션 정보 (page, size, sort)")
+            Pageable pageable
     );
 
     @Operation(
