@@ -54,6 +54,11 @@ public record MultiRoomEventResponse(
         return new MultiRoomEventResponse("MESSAGE", message, null);
     }
 
+    // 게임 시작 알림
+    public static MultiRoomEventResponse gameStartNotification() {
+        return new MultiRoomEventResponse("GAME_START_NOTIFICATION", "게임이 시작됩니다!", null);
+    }
+
     // 게임 종료 (랭킹 포함)
     public static MultiRoomEventResponse gameEndWithRanking(GameEndResponseDto.GameEndData gameEndData) {
         String message;

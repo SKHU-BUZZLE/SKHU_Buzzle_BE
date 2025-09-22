@@ -165,12 +165,12 @@ public class MultiRoomWebSocketService {
             log.info("✅ [GAME_START_REQUEST] Host: {}, Room: {}, Players: {}/{}",
                     hostEmail, inviteCode, room.getCurrentPlayerCount(), room.getMaxPlayers());
 
-            multiRoomService.startGame(roomId, hostEmail);
-
             messagingTemplate.convertAndSend(
                     "/topic/room/" + inviteCode,
-                    MultiRoomEventResponse.message("게임이 시작됩니다!")
+                    MultiRoomEventResponse.gameStartNotification()
             );
+
+            multiRoomService.startGame(roomId, hostEmail);
 
         } catch (Exception e) {
             MultiRoom room = multiRoomService.getRoom(roomId);

@@ -111,12 +111,33 @@ public class SwaggerConfig {
                         "  }\n" +
                         "}\n" +
                         "```\n\n" +
+                        "**GAME_START_NOTIFICATION** - 게임 시작 알림 시\n" +
+                        "```json\n" +
+                        "{\n" +
+                        "  \"type\": \"GAME_START_NOTIFICATION\",\n" +
+                        "  \"message\": \"게임이 시작됩니다!\",\n" +
+                        "  \"data\": null\n" +
+                        "}\n" +
+                        "```\n\n" +
                         "**GAME_END** - 게임 종료 시\n" +
                         "```json\n" +
                         "{\n" +
                         "  \"type\": \"GAME_END\",\n" +
                         "  \"message\": \"게임이 종료되었습니다.\",\n" +
                         "  \"winner\": \"user@example.com\"\n" +
+                        "}\n" +
+                        "```\n\n" +
+                        "**GAME_END_RANKING** - 게임 종료 (랭킹 포함) 시\n" +
+                        "```json\n" +
+                        "{\n" +
+                        "  \"type\": \"GAME_END_RANKING\",\n" +
+                        "  \"message\": \"게임이 종료되었습니다! 우승자: 홍길동. 방이 해체됩니다.\",\n" +
+                        "  \"data\": {\n" +
+                        "    \"rankings\": [\n" +
+                        "      {\"name\": \"홍길동\", \"score\": 3},\n" +
+                        "      {\"name\": \"김철수\", \"score\": 1}\n" +
+                        "    ]\n" +
+                        "  }\n" +
                         "}\n" +
                         "```\n\n" +
                         "**LOADING** - 다음 문제 로딩 시\n" +
