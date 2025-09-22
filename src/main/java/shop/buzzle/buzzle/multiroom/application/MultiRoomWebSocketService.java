@@ -219,13 +219,13 @@ public class MultiRoomWebSocketService {
         Map<String, Object> gameStartPayload = Map.of(
             "type", "GAME_START",
             "totalQuestions", session.getTotalQuestions(),
-            "countdownSeconds", 3
+            "countdownSeconds", 0
         );
         messagingTemplate.convertAndSend("/topic/room/" + inviteCode, gameStartPayload);
 
-        log.info("✅ [GAME_COUNTDOWN] Room: {}, Starting in 3 seconds...", inviteCode);
+        log.info("✅ [GAME_COUNTDOWN] Room: {}, Starting in 0.1 seconds...", inviteCode);
 
-        CompletableFuture.delayedExecutor(3, TimeUnit.SECONDS).execute(() -> {
+        CompletableFuture.delayedExecutor(100, TimeUnit.MILLISECONDS).execute(() -> {
             sendCurrentQuestion(roomId);
         });
     }
