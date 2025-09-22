@@ -144,7 +144,7 @@ public class MultiRoomWebSocketService {
 
                 messagingTemplate.convertAndSend(
                         "/topic/room/" + inviteCode,
-                        MultiRoomEventResponse.playerLeft(playerName)
+                        MultiRoomEventResponse.playerLeft(playerName, playerEmail)
                 );
                 log.info("✅ [PLAYER_LEFT] Player: {} ({}), InviteCode: {}", playerName, playerEmail, inviteCode);
             }

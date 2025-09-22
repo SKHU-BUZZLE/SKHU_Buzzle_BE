@@ -30,8 +30,12 @@ public record MultiRoomEventResponse(
     }
 
     // 플레이어 퇴장 알림
-    public static MultiRoomEventResponse playerLeft(String playerName) {
-        return new MultiRoomEventResponse("PLAYER_LEFT", playerName + "님이 퇴장했습니다.", Map.of("name", playerName));
+    public static MultiRoomEventResponse playerLeft(String playerName, String playerEmail) {
+        var data = Map.of(
+                "name", playerName,
+                "email", playerEmail
+        );
+        return new MultiRoomEventResponse("PLAYER_LEFT", playerName + "님이 퇴장했습니다.", data);
     }
 
     // 문제 전송
