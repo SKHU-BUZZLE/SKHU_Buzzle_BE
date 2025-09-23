@@ -19,7 +19,7 @@ import shop.buzzle.buzzle.quiz.api.dto.request.QuizSizeReqDto;
 import shop.buzzle.buzzle.quiz.api.dto.request.RetryQuizAnswerReqDto;
 import shop.buzzle.buzzle.quiz.api.dto.response.QuizResDto;
 import shop.buzzle.buzzle.quiz.api.dto.response.QuizResListDto;
-import shop.buzzle.buzzle.quiz.api.dto.response.QuizResultPageResDto;
+import shop.buzzle.buzzle.quiz.api.dto.response.QuizResultSimplePageResDto;
 import shop.buzzle.buzzle.quiz.api.dto.response.QuizResultResDto;
 import shop.buzzle.buzzle.quiz.api.dto.response.RetryQuizResDto;
 import shop.buzzle.buzzle.quiz.api.dto.request.IncorrectQuizChallengeReqDto;
@@ -52,9 +52,9 @@ public class QuizController implements QuizDocs{
     }
 
     @GetMapping("/incorrect-notes")
-    public RspTemplate<QuizResultPageResDto> getIncorrectNotes(@CurrentUserEmail String email,
-                                                               @PageableDefault(size = 10) Pageable pageable) {
-        return new RspTemplate<>(HttpStatus.OK, "오답노트 조회 완료", quizService.getIncorrectAnswersWithPagination(email, pageable));
+    public RspTemplate<QuizResultSimplePageResDto> getIncorrectNotes(@CurrentUserEmail String email,
+                                                                     @PageableDefault(size = 10) Pageable pageable) {
+        return new RspTemplate<>(HttpStatus.OK, "오답노트 조회 완료", quizService.getIncorrectAnswersSimpleWithPagination(email, pageable));
     }
 
     @GetMapping("/incorrect-notes/{quizResultId}")

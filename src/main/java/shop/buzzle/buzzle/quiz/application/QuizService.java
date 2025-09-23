@@ -22,6 +22,7 @@ import shop.buzzle.buzzle.quiz.api.dto.request.RetryQuizAnswerReqDto;
 import shop.buzzle.buzzle.quiz.api.dto.response.QuizResDto;
 import shop.buzzle.buzzle.quiz.api.dto.response.QuizResListDto;
 import shop.buzzle.buzzle.quiz.api.dto.response.QuizResultPageResDto;
+import shop.buzzle.buzzle.quiz.api.dto.response.QuizResultSimplePageResDto;
 import shop.buzzle.buzzle.quiz.api.dto.response.QuizResultResDto;
 import shop.buzzle.buzzle.quiz.api.dto.response.RetryQuizResDto;
 import shop.buzzle.buzzle.quiz.api.dto.request.IncorrectQuizChallengeReqDto;
@@ -198,6 +199,15 @@ public class QuizService {
     }
 
     @Transactional(readOnly = true)
+    public QuizResultSimplePageResDto getIncorrectAnswersSimpleWithPagination(String email, Pageable pageable) {
+        Member member = memberRepository.findByEmail(email).orElseThrow(MemberNotFoundException::new);
+
+        Page<QuizResult> incorrectResultsPage = quizResultRepository.findIncorrectAnswersByMemberWithPagination(member, pageable);
+
+        return QuizResultSimplePageResDto.from(incorrectResultsPage);
+    }
+
+    @Transactional(readOnly = true)
     public RetryQuizResDto getIncorrectQuizDetail(String email, Long quizResultId) {
         QuizResult quizResult = getOwnedIncorrectQuizResultForView(email, quizResultId);
         return RetryQuizResDto.from(quizResult);
@@ -301,10 +311,6 @@ public class QuizService {
             
             if (isCorrect) {
                 correctAnswers++;
-                // 맞힌 문제는 오답노트에서 제거 (삭제)
-                quizResultRepository.delete(quizResult);
-                removedFromWrongNote = true;
-                removedFromWrongNotes++;
             }
             
             results.add(IncorrectQuizChallengeResultResDto.QuizResultDto.builder()
