@@ -134,6 +134,19 @@ public class WSRoomService {
             );
             messagingTemplate.convertAndSend("/topic/game/" + roomId, timeUpPayload);
 
+            // 시간 초과 시 모든 플레이어의 life 감소
+            List<String> playerEmails = session.getAllPlayerEmails();
+            if (playerEmails != null) {
+                for (String playerEmail : playerEmails) {
+                    Member member = memberRepository.findByEmail(playerEmail)
+                            .orElse(null);
+                    if (member != null) {
+                        member.decrementLife();
+                        System.out.println("⏰ [TIMEOUT_LIFE_DECREASED] Player: " + member.getName() + " lost 1 life due to timeout, remaining: " + member.getLife());
+                    }
+                }
+            }
+
             // 시간 초과 처리
             if (!session.isFinished()) {
                 roomLocks.putIfAbsent(roomId, new Object());
@@ -207,7 +220,12 @@ public class WSRoomService {
                     WebSocketAnswerResponse.of(email, displayName, isCorrect, String.valueOf(correctIndex), String.valueOf(submittedIndex))
             );
 
-            if (!isCorrect) return;
+            if (!isCorrect) {
+                // 틀린 답안 제출 시 life 감소
+                member.decrementLife();
+                System.out.println("💔 [LIFE_DECREASED] Player: " + displayName + " submitted wrong answer, lost 1 life, remaining: " + member.getLife());
+                return;
+            }
 
             boolean accepted = session.tryAnswerCorrect(email, submittedIndex);
             if (!accepted) return;

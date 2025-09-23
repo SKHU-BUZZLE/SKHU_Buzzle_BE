@@ -293,6 +293,20 @@ public class MultiRoomWebSocketService {
             );
             messagingTemplate.convertAndSend("/topic/room/" + inviteCode, timeUpPayload);
 
+            // 시간 초과 시 모든 플레이어의 life 감소
+            MultiRoom room = multiRoomService.getRoom(roomId);
+            if (room != null) {
+                for (String playerEmail : room.getPlayerEmails()) {
+                    Member member = memberRepository.findByEmail(playerEmail)
+                            .orElse(null);
+                    if (member != null) {
+                        member.decrementLife();
+                        log.info("⏰ [TIMEOUT_LIFE_DECREASED] Player: {} lost 1 life due to timeout, remaining: {}",
+                                member.getName(), member.getLife());
+                    }
+                }
+            }
+
             // 시간 초과 처리
             if (!session.isFinished()) {
                 roomLocks.putIfAbsent(roomId, new Object());
@@ -381,7 +395,13 @@ public class MultiRoomWebSocketService {
             );
             messagingTemplate.convertAndSend("/topic/room/" + inviteCode, answerResponse);
 
-            if (!isCorrect) return;
+            if (!isCorrect) {
+                // 틀린 답안 제출 시 life 감소
+                member.decrementLife();
+                log.info("💔 [LIFE_DECREASED] Player: {} submitted wrong answer, lost 1 life, remaining: {}",
+                        displayName, member.getLife());
+                return;
+            }
 
             boolean accepted = session.tryAnswerCorrect(email, answerRequest.index());
             if (!accepted) {
