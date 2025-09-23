@@ -13,6 +13,7 @@ import shop.buzzle.buzzle.quiz.api.dto.request.QuizAnswerReqDto;
 import shop.buzzle.buzzle.quiz.api.dto.request.QuizSizeReqDto;
 import shop.buzzle.buzzle.quiz.api.dto.request.RetryQuizAnswerReqDto;
 import shop.buzzle.buzzle.quiz.api.dto.response.QuizResListDto;
+import shop.buzzle.buzzle.quiz.api.dto.response.QuizResultSimplePageResDto;
 import shop.buzzle.buzzle.quiz.api.dto.response.QuizResultPageResDto;
 import shop.buzzle.buzzle.quiz.api.dto.response.QuizResultResDto;
 import shop.buzzle.buzzle.quiz.api.dto.response.RetryQuizResDto;
@@ -154,7 +155,7 @@ public interface QuizDocs {
                             responseCode = "200",
                             description = "오답노트 조회 성공",
                             content = @Content(
-                                    schema = @Schema(implementation = QuizResultPageResDto.class),
+                                    schema = @Schema(implementation = QuizResultSimplePageResDto.class),
                                     examples = @ExampleObject(
                                             name = "오답노트 응답 예시",
                                             value = """
@@ -165,16 +166,7 @@ public interface QuizDocs {
                                                         "content": [
                                                           {
                                                             "id": 102,
-                                                            "question": "고래는 물고기인가요?",
-                                                            "option1": "네",
-                                                            "option2": "아니요",
-                                                            "option3": "상황에 따라 다름",
-                                                            "option4": "모르겠어요",
-                                                            "correctAnswerNumber": "2",
-                                                            "userAnswerNumber": "1",
-                                                            "category": "SCIENCE",
-                                                            "isCorrect": false,
-                                                            "createdAt": "2025-09-15T10:12:34"
+                                                            "question": "고래는 물고기인가요?"
                                                           }
                                                         ],
                                                         "pageInfo": {
@@ -190,10 +182,10 @@ public interface QuizDocs {
                     )
             }
     )
-    RspTemplate<QuizResultPageResDto> getIncorrectNotes(
+    RspTemplate<QuizResultSimplePageResDto> getIncorrectNotes(
             @Parameter(description = "로그인한 유저의 이메일 (토큰에서 자동 추출)", hidden = true)
             String email,
-            @Parameter(description = "페이지네이션 정보 (page, size, sort)")
+            @Parameter(description = "페이지네이션 정보 (page, size)")
             Pageable pageable
     );
 
