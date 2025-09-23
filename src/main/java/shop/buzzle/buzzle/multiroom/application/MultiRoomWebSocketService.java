@@ -301,6 +301,7 @@ public class MultiRoomWebSocketService {
                             .orElse(null);
                     if (member != null) {
                         member.decrementLife();
+                        memberRepository.save(member);
                         log.info("⏰ [TIMEOUT_LIFE_DECREASED] Player: {} lost 1 life due to timeout, remaining: {}",
                                 member.getName(), member.getLife());
                     }

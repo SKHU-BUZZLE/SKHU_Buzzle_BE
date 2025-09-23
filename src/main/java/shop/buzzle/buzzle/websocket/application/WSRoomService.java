@@ -142,6 +142,7 @@ public class WSRoomService {
                             .orElse(null);
                     if (member != null) {
                         member.decrementLife();
+                        memberRepository.save(member);
                         System.out.println("⏰ [TIMEOUT_LIFE_DECREASED] Player: " + member.getName() + " lost 1 life due to timeout, remaining: " + member.getLife());
                     }
                 }
