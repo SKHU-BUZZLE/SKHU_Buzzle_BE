@@ -41,7 +41,7 @@ public class RandomRoomService {
 
     public void startGame(String roomId, List<String> playerEmails) {
         List<QuizResDto> quizzes = quizService
-                .askForAdvice(new QuizSizeReqDto(QuizCategory.ALL, 3))
+                .askForAdvice(new QuizSizeReqDto(QuizCategory.ALL, 5))
                 .quizResDtos();
 
         List<Question> questions = quizzes.stream()
