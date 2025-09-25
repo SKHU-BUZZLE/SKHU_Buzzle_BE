@@ -42,7 +42,7 @@ public class SwaggerConfig {
                         "2. **방장 입장**: 초대 코드로 처음 입장하는 유저가 방장이 됨\n" +
                         "3. **친구 초대**: 초대 코드를 친구에게 전달\n" +
                         "4. **친구 참가**: 초대 코드로 입장 (최대 인원까지)\n" +
-                        "5. **게임 이벤트 구독**: 모든 참가자가 `/topic/game/{roomId}` 구독\n" +
+                        "5. **게임 이벤트 구독**: 모든 참가자가 `/topic/room/{roomId}` 구독\n" +
                         "6. **게임 시작**: 방장이 시작 버튼을 눌러 퀴즈 게임 시작\n\n" +
                         "## WebSocket 연결 정보\n" +
                         "- **연결 URL**: wss://dev-buzzle2.store/chat 혹은 운영 서버면 wss://buzzle2.store/chat\n" +
