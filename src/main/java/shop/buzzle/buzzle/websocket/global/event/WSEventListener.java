@@ -38,12 +38,12 @@ public class WSEventListener {
         String destination = accessor.getDestination();
         String userEmail = (String) sessionAttributes.get("userEmail");
 
-        // ✅ 1. 개인 큐(/user/**) 구독은 무시
+        // 개인 큐(/user/**) 구독은 무시
         if (destination == null || destination.startsWith("/user/")) {
             return;
         }
 
-        // ✅ 2. 멀티룸 구독 (/topic/room/{roomId})
+        // 멀티룸 구독 (/topic/room/{roomId})
         if (destination.startsWith("/topic/room/")) {
             String roomId = parseRoomId(destination);
             if (roomId != null && userEmail != null) {
@@ -54,7 +54,7 @@ public class WSEventListener {
             return;
         }
 
-        // ✅ 3. 일반방 구독 (/topic/game/{roomId})
+        // 일반방 구독 (/topic/game/{roomId}) 일 때만 누적 인원 처리
         if (destination.startsWith("/topic/game/")) {
             String roomId = parseRoomId(destination);
             if (roomId != null && userEmail != null) {
