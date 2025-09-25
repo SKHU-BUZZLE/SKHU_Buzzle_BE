@@ -22,7 +22,7 @@ import shop.buzzle.buzzle.quiz.application.QuizService;
 import shop.buzzle.buzzle.quiz.domain.QuizScore;
 import shop.buzzle.buzzle.websocket.dto.AnswerRequest;
 import shop.buzzle.buzzle.websocket.dto.Question;
-import shop.buzzle.buzzle.websocket.dto.WebSocketAnswerResponse;
+import shop.buzzle.buzzle.websocket.dto.AnswerResponse;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -387,7 +387,7 @@ public class MultiRoomWebSocketService {
                     displayName, inviteCode, answerRequest.questionIndex() + 1, answerRequest.index() + 1, isCorrect);
 
             // ANSWER_RESULT 이벤트 전송
-            WebSocketAnswerResponse answerResponse = WebSocketAnswerResponse.of(
+            AnswerResponse answerResponse = AnswerResponse.of(
                 email,
                 displayName,
                 isCorrect,

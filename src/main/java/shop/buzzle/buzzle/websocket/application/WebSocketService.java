@@ -1,14 +1,14 @@
-package shop.buzzle.buzzle.websocket.random.application;
+package shop.buzzle.buzzle.websocket.application;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
-import shop.buzzle.buzzle.websocket.random.api.dto.WebSocketResponse;
+import shop.buzzle.buzzle.websocket.dto.WebSocketResponse;
 
 @Service
 @RequiredArgsConstructor
-public class RandomWebSocketService {
+public class WebSocketService {
 
     private final SimpMessagingTemplate messagingTemplate;
 
@@ -16,6 +16,7 @@ public class RandomWebSocketService {
         return (String) headerAccessor.getSessionAttributes().get("userEmail");
     }
 
+    // 초대 기반 멀티룸 로직
     public void sendMessage(
             SimpMessageHeaderAccessor headerAccessor, String roomId, String message) {
         String username = getUsernameFromSession(headerAccessor);
@@ -24,6 +25,7 @@ public class RandomWebSocketService {
                 "/topic/room/" + roomId, WebSocketResponse.Send.of(username, message));
     }
 
+    // 랜덤 매칭 멀티룸 로직
     public void sendGameMessage(String roomId, String username, String message) {
         messagingTemplate.convertAndSend(
                 "/topic/game/" + roomId, WebSocketResponse.Send.of(username, message));

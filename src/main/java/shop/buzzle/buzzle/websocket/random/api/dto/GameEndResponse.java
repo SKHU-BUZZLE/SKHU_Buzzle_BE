@@ -1,13 +1,13 @@
-package shop.buzzle.buzzle.websocket.dto;
+package shop.buzzle.buzzle.websocket.random.api.dto;
 
 import java.util.List;
 
-public record WebSocketGameEndResponse(
+public record GameEndResponse(
         String type,
         String message,
         GameEndData data
 ) {
-    public static WebSocketGameEndResponse withRanking(List<PlayerRanking> rankings, boolean hasTie) {
+    public static GameEndResponse withRanking(List<PlayerRanking> rankings, boolean hasTie) {
         String message;
 
         if (hasTie) {
@@ -17,7 +17,7 @@ public record WebSocketGameEndResponse(
             message = "게임이 종료되었습니다! 우승자: " + firstPlace.name();
         }
 
-        return new WebSocketGameEndResponse(
+        return new GameEndResponse(
                 "GAME_END_RANKING",
                 message,
                 new GameEndData(rankings, hasTie)

@@ -8,13 +8,13 @@ import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.stereotype.Controller;
 import shop.buzzle.buzzle.websocket.dto.AnswerRequest;
 import shop.buzzle.buzzle.websocket.random.application.RandomRoomService;
-import shop.buzzle.buzzle.websocket.random.application.RandomWebSocketService;
+import shop.buzzle.buzzle.websocket.application.WebSocketService;
 
 @Controller
 @RequiredArgsConstructor
 public class RandomWebSocketController {
 
-    private final RandomWebSocketService randomWebSocketService;
+    private final WebSocketService webSocketService;
     private final RandomRoomService wsRoomService;
 
     // 보내는 경로 예시) /app/room/1
@@ -23,7 +23,7 @@ public class RandomWebSocketController {
             @DestinationVariable String roomId,
             SimpMessageHeaderAccessor headerAccessor,
             String message) {
-        randomWebSocketService.sendMessage(headerAccessor, roomId, message);
+        webSocketService.sendMessage(headerAccessor, roomId, message);
     }
 
     // 유저가 보내는 메세지 가공.
@@ -32,9 +32,9 @@ public class RandomWebSocketController {
             @DestinationVariable String roomId,
             SimpMessageHeaderAccessor headerAccessor,
             String message) {
-        String username = randomWebSocketService.getUsernameFromSession(headerAccessor);
+        String username = webSocketService.getUsernameFromSession(headerAccessor);
 
-        randomWebSocketService.sendGameMessage(roomId, username, message);
+        webSocketService.sendGameMessage(roomId, username, message);
     }
 
     @MessageMapping("/game/{roomId}/answer")

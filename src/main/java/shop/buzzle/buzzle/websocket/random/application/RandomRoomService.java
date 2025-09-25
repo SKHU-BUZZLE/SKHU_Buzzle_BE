@@ -1,12 +1,13 @@
 package shop.buzzle.buzzle.websocket.random.application;
 
+import java.util.LinkedHashMap;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessageSendingOperations;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import shop.buzzle.buzzle.websocket.dto.WebSocketAnswerResponse;
-import shop.buzzle.buzzle.websocket.random.api.dto.WebSocketQuestionResponse;
-import shop.buzzle.buzzle.websocket.dto.WebSocketGameEndResponse;
+import shop.buzzle.buzzle.websocket.dto.AnswerResponse;
+import shop.buzzle.buzzle.websocket.random.api.dto.QuestionResponse;
+import shop.buzzle.buzzle.websocket.random.api.dto.GameEndResponse;
 import shop.buzzle.buzzle.websocket.random.game.application.RandomGameSession;
 import shop.buzzle.buzzle.member.domain.Member;
 import shop.buzzle.buzzle.member.domain.repository.MemberRepository;
@@ -18,7 +19,7 @@ import shop.buzzle.buzzle.quiz.domain.QuizCategory;
 import shop.buzzle.buzzle.quiz.domain.QuizScore;
 import shop.buzzle.buzzle.websocket.dto.AnswerRequest;
 import shop.buzzle.buzzle.websocket.dto.Question;
-import shop.buzzle.buzzle.websocket.dto.LeaderboardResponse;
+import shop.buzzle.buzzle.websocket.random.api.dto.LeaderboardResponse;
 import shop.buzzle.buzzle.websocket.random.api.dto.PlayerJoinedResponse;
 
 import java.util.ArrayList;
@@ -65,7 +66,7 @@ public class RandomRoomService {
 
         messagingTemplate.convertAndSend(
                 "/topic/game/" + roomId,
-                WebSocketQuestionResponse.of(
+                QuestionResponse.of(
                         q.text(),
                         q.options(),
                         session.getCurrentQuestionIndex()
@@ -199,7 +200,7 @@ public class RandomRoomService {
             int correctIndex = Integer.parseInt(current.answerIndex()) - 1;
             messagingTemplate.convertAndSend(
                     "/topic/game/" + roomId,
-                    WebSocketAnswerResponse.of(email, displayName, isCorrect, String.valueOf(correctIndex), String.valueOf(submittedIndex))
+                    AnswerResponse.of(email, displayName, isCorrect, String.valueOf(correctIndex), String.valueOf(submittedIndex))
             );
 
             if (!isCorrect) {
@@ -268,7 +269,7 @@ public class RandomRoomService {
         List<String> allPlayerEmails = session.getAllPlayerEmails();
 
         // 플레이어 랭킹 생성
-        List<WebSocketGameEndResponse.PlayerRanking> rankings = createGameEndRanking(scores, allPlayerEmails);
+        List<GameEndResponse.PlayerRanking> rankings = createGameEndRanking(scores, allPlayerEmails);
 
         // 동점 여부 확인
         boolean hasTie = rankings.size() > 1 &&
@@ -285,15 +286,15 @@ public class RandomRoomService {
         // 랭킹 정보와 함께 게임 종료 메시지 전송
         messagingTemplate.convertAndSend(
                 "/topic/game/" + roomId,
-                WebSocketGameEndResponse.withRanking(rankings, hasTie)
+                GameEndResponse.withRanking(rankings, hasTie)
         );
 
         sessionMap.remove(roomId);
         cancelRoomTimers(roomId);
     }
 
-    private List<WebSocketGameEndResponse.PlayerRanking> createGameEndRanking(Map<String, Integer> scores, List<String> allPlayerEmails) {
-        List<WebSocketGameEndResponse.PlayerRanking> rankings = new ArrayList<>();
+    private List<GameEndResponse.PlayerRanking> createGameEndRanking(Map<String, Integer> scores, List<String> allPlayerEmails) {
+        List<GameEndResponse.PlayerRanking> rankings = new ArrayList<>();
 
         // 모든 플레이어를 점수별로 정렬
         List<String> sortedEmails = allPlayerEmails.stream()
@@ -325,7 +326,7 @@ public class RandomRoomService {
 
             boolean isWinner = (currentRank == 1);
 
-            rankings.add(new WebSocketGameEndResponse.PlayerRanking(
+            rankings.add(new GameEndResponse.PlayerRanking(
                     currentRank,
                     email,
                     member.getName(),
@@ -341,7 +342,7 @@ public class RandomRoomService {
     }
 
     public void broadcastToRoom(String roomId, String type, String message) {
-        Map<String, Object> response = new java.util.LinkedHashMap<>();
+        Map<String, Object> response = new LinkedHashMap<>();
         response.put("type", type);
         response.put("message", message);
 
@@ -366,7 +367,7 @@ public class RandomRoomService {
 
         messagingTemplate.convertAndSend(
                 "/topic/game/" + roomId,
-                WebSocketQuestionResponse.of(
+                QuestionResponse.of(
                         q.text(),
                         q.options(),
                         session.getCurrentQuestionIndex()
