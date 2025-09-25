@@ -15,7 +15,7 @@ import shop.buzzle.buzzle.websocket.invite.application.MultiRoomService;
 @RestController
 @RequestMapping("/api/multi-room")
 @RequiredArgsConstructor
-public class MultiRoomController implements MultiRoomDocs {
+public class InviteController implements InvitedDocs {
 
     private final MultiRoomService multiRoomService;
 

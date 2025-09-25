@@ -1,4 +1,4 @@
-package shop.buzzle.buzzle.websocket.random.game.api.dto;
+package shop.buzzle.buzzle.websocket.dto;
 
 public record WebSocketAnswerResponse(
         String type,

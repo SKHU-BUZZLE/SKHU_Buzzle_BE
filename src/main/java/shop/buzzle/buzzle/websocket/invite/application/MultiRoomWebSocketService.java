@@ -20,9 +20,9 @@ import shop.buzzle.buzzle.quiz.api.dto.request.QuizSizeReqDto;
 import shop.buzzle.buzzle.quiz.api.dto.response.QuizResDto;
 import shop.buzzle.buzzle.quiz.application.QuizService;
 import shop.buzzle.buzzle.quiz.domain.QuizScore;
-import shop.buzzle.buzzle.websocket.random.api.dto.AnswerRequest;
-import shop.buzzle.buzzle.websocket.random.api.dto.Question;
-import shop.buzzle.buzzle.websocket.random.game.api.dto.WebSocketAnswerResponse;
+import shop.buzzle.buzzle.websocket.dto.AnswerRequest;
+import shop.buzzle.buzzle.websocket.dto.Question;
+import shop.buzzle.buzzle.websocket.dto.WebSocketAnswerResponse;
 
 import java.util.ArrayList;
 import java.util.HashMap;

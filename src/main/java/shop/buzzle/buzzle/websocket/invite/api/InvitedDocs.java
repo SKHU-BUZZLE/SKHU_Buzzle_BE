@@ -14,7 +14,7 @@ import shop.buzzle.buzzle.websocket.invite.api.dto.response.MultiRoomCreateResDt
 import shop.buzzle.buzzle.websocket.invite.api.dto.response.InviteCodeValidationResDto;
 
 @Tag(name = "MultiRoom", description = "멀티플레이어 방 관리 API")
-public interface MultiRoomDocs {
+public interface InvitedDocs {
 
     @Operation(
             summary = "멀티플레이어 방 생성",

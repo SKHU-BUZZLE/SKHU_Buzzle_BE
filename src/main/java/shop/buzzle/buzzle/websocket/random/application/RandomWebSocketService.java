@@ -8,7 +8,7 @@ import shop.buzzle.buzzle.websocket.random.api.dto.WebSocketResponse;
 
 @Service
 @RequiredArgsConstructor
-public class WebSocketService {
+public class RandomWebSocketService {
 
     private final SimpMessagingTemplate messagingTemplate;
 

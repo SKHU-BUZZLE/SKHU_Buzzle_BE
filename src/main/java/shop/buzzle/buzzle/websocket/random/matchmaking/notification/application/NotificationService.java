@@ -1,4 +1,4 @@
-package shop.buzzle.buzzle.notification.application;
+package shop.buzzle.buzzle.websocket.random.matchmaking.notification.application;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -7,8 +7,8 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import shop.buzzle.buzzle.member.domain.Member;
 import shop.buzzle.buzzle.member.domain.repository.MemberRepository;
 import shop.buzzle.buzzle.member.exception.MemberNotFoundException;
-import shop.buzzle.buzzle.notification.domain.Notification;
-import shop.buzzle.buzzle.notification.domain.repository.NotificationRepository;
+import shop.buzzle.buzzle.websocket.random.matchmaking.notification.domain.Notification;
+import shop.buzzle.buzzle.websocket.random.matchmaking.notification.domain.repository.NotificationRepository;
 
 @Service
 @RequiredArgsConstructor

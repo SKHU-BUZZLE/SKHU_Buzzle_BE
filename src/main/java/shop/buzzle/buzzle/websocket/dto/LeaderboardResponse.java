@@ -1,4 +1,4 @@
-package shop.buzzle.buzzle.websocket.random.api.dto;
+package shop.buzzle.buzzle.websocket.dto;
 
 import java.util.Map;
 

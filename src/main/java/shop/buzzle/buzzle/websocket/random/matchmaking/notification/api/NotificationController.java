@@ -1,4 +1,4 @@
-package shop.buzzle.buzzle.notification.api;
+package shop.buzzle.buzzle.websocket.random.matchmaking.notification.api;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import shop.buzzle.buzzle.global.annotation.CurrentUserEmail;
 import shop.buzzle.buzzle.global.template.RspTemplate;
-import shop.buzzle.buzzle.notification.application.NotificationService;
+import shop.buzzle.buzzle.websocket.random.matchmaking.notification.application.NotificationService;
 
 @RestController
 @RequestMapping("/api")

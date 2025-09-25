@@ -1,4 +1,4 @@
-package shop.buzzle.buzzle.notification.api;
+package shop.buzzle.buzzle.websocket.random.matchmaking.notification.api;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;

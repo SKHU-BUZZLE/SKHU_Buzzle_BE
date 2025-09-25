@@ -1,4 +1,4 @@
-package shop.buzzle.buzzle.notification.domain;
+package shop.buzzle.buzzle.websocket.random.matchmaking.notification.domain;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

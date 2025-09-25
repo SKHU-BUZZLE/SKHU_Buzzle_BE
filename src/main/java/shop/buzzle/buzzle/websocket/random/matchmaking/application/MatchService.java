@@ -9,8 +9,8 @@ import shop.buzzle.buzzle.member.domain.Member;
 import shop.buzzle.buzzle.member.domain.repository.MemberRepository;
 import shop.buzzle.buzzle.member.exception.MemberNotFoundException;
 import shop.buzzle.buzzle.websocket.random.matchmaking.api.dto.response.MatchInfoDto;
-import shop.buzzle.buzzle.notification.application.NotificationService;
-import shop.buzzle.buzzle.notification.application.SseEmitterManager;
+import shop.buzzle.buzzle.websocket.random.matchmaking.notification.application.NotificationService;
+import shop.buzzle.buzzle.websocket.random.matchmaking.notification.application.SseEmitterManager;
 import shop.buzzle.buzzle.quiz.application.QuizService;
 
 import java.io.IOException;
@@ -24,9 +24,8 @@ import java.util.concurrent.locks.ReentrantLock;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class MultiService {
+public class MatchService {
 
-    private final QuizService quizService;
     private final MemberRepository memberRepository;
     private final NotificationService notificationService;
     private final SseEmitterManager sseEmitterManager;

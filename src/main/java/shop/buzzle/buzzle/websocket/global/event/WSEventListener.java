@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 import org.springframework.web.socket.messaging.SessionSubscribeEvent;
 
-import shop.buzzle.buzzle.websocket.random.application.WSRoomService;
+import shop.buzzle.buzzle.websocket.random.application.RandomRoomService;
 import shop.buzzle.buzzle.websocket.random.api.dto.PlayerJoinedResponse;
 import shop.buzzle.buzzle.member.domain.Member;
 import shop.buzzle.buzzle.member.domain.repository.MemberRepository;
@@ -24,7 +24,7 @@ import shop.buzzle.buzzle.member.exception.MemberNotFoundException;
 @Slf4j
 public class WSEventListener {
 
-    private final WSRoomService wsRoomService;
+    private final RandomRoomService wsRoomService;
     private final MemberRepository memberRepository;
     private final Map<String, Set<String>> roomPlayers = new ConcurrentHashMap<>();
     private final Set<String> startedRooms = ConcurrentHashMap.newKeySet();

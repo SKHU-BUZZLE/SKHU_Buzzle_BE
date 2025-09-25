@@ -1,4 +1,4 @@
-package shop.buzzle.buzzle.notification.application;
+package shop.buzzle.buzzle.websocket.random.matchmaking.notification.application;
 
 import java.io.IOException;
 import java.util.Map;
@@ -8,7 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import shop.buzzle.buzzle.member.domain.Member;
-import shop.buzzle.buzzle.notification.exception.SendFailedException;
+import shop.buzzle.buzzle.websocket.random.matchmaking.notification.exception.SendFailedException;
 
 @Slf4j
 @Component

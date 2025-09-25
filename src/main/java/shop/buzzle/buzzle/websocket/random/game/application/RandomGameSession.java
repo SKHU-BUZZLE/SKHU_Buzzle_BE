@@ -7,10 +7,10 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import lombok.Getter;
-import shop.buzzle.buzzle.websocket.random.api.dto.Question;
+import shop.buzzle.buzzle.websocket.dto.Question;
 
 @Getter
-public class GameSession {
+public class RandomGameSession {
     private final List<Question> questions;
     private int currentQuestionIndex = 0;
     private boolean finished = false;
@@ -21,11 +21,7 @@ public class GameSession {
     private final AtomicBoolean transitionLock = new AtomicBoolean(false);  
     private final AtomicBoolean timerRunning = new AtomicBoolean(false);    
 
-    public GameSession(List<Question> questions) {
-        this.questions = questions;
-    }
-
-    public GameSession(List<Question> questions, List<String> playerEmails) {
+    public RandomGameSession(List<Question> questions, List<String> playerEmails) {
         this.questions = questions;
         this.allPlayerEmails.addAll(playerEmails);
         // 모든 플레이어를 0점으로 초기화

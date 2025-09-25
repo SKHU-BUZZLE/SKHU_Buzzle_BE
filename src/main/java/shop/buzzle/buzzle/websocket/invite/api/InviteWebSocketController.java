@@ -8,11 +8,11 @@ import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.stereotype.Controller;
 import shop.buzzle.buzzle.websocket.invite.api.dto.request.MultiRoomJoinReqDto;
 import shop.buzzle.buzzle.websocket.invite.application.MultiRoomWebSocketService;
-import shop.buzzle.buzzle.websocket.random.api.dto.AnswerRequest;
+import shop.buzzle.buzzle.websocket.dto.AnswerRequest;
 
 @Controller
 @RequiredArgsConstructor
-public class MultiRoomWebSocketController {
+public class InviteWebSocketController {
 
     private final MultiRoomWebSocketService multiRoomWebSocketService;
 

@@ -4,10 +4,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessageSendingOperations;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import shop.buzzle.buzzle.websocket.random.game.api.dto.WebSocketAnswerResponse;
-import shop.buzzle.buzzle.websocket.random.game.api.dto.WebSocketQuestionResponse;
-import shop.buzzle.buzzle.websocket.random.game.api.dto.WebSocketGameEndResponse;
-import shop.buzzle.buzzle.websocket.random.game.application.GameSession;
+import shop.buzzle.buzzle.websocket.dto.WebSocketAnswerResponse;
+import shop.buzzle.buzzle.websocket.random.api.dto.WebSocketQuestionResponse;
+import shop.buzzle.buzzle.websocket.dto.WebSocketGameEndResponse;
+import shop.buzzle.buzzle.websocket.random.game.application.RandomGameSession;
 import shop.buzzle.buzzle.member.domain.Member;
 import shop.buzzle.buzzle.member.domain.repository.MemberRepository;
 import shop.buzzle.buzzle.member.exception.MemberNotFoundException;
@@ -16,9 +16,9 @@ import shop.buzzle.buzzle.quiz.api.dto.request.QuizSizeReqDto;
 import shop.buzzle.buzzle.quiz.application.QuizService;
 import shop.buzzle.buzzle.quiz.domain.QuizCategory;
 import shop.buzzle.buzzle.quiz.domain.QuizScore;
-import shop.buzzle.buzzle.websocket.random.api.dto.AnswerRequest;
-import shop.buzzle.buzzle.websocket.random.api.dto.Question;
-import shop.buzzle.buzzle.websocket.random.api.dto.LeaderboardResponse;
+import shop.buzzle.buzzle.websocket.dto.AnswerRequest;
+import shop.buzzle.buzzle.websocket.dto.Question;
+import shop.buzzle.buzzle.websocket.dto.LeaderboardResponse;
 import shop.buzzle.buzzle.websocket.random.api.dto.PlayerJoinedResponse;
 
 import java.util.ArrayList;
@@ -28,34 +28,15 @@ import java.util.concurrent.*;
 
 @Service
 @RequiredArgsConstructor
-public class WSRoomService {
+public class RandomRoomService {
 
     private final QuizService quizService;
     private final MemberRepository memberRepository;
     private final SimpMessageSendingOperations messagingTemplate;
-    private final Map<String, GameSession> sessionMap = new ConcurrentHashMap<>();
+    private final Map<String, RandomGameSession> sessionMap = new ConcurrentHashMap<>();
     private final Map<String, Object> roomLocks = new ConcurrentHashMap<>();
     private final Map<String, List<ScheduledFuture<?>>> roomTimers = new ConcurrentHashMap<>();
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(10);
-
-    public void startGame(String roomId) {
-        List<QuizResDto> quizzes = quizService
-                .askForAdvice(new QuizSizeReqDto(QuizCategory.ALL, 3))
-                .quizResDtos();
-
-        List<Question> questions = quizzes.stream()
-                .map(q -> new Question(
-                        q.question(),
-                        List.of(q.option1(), q.option2(), q.option3(), q.option4()),
-                        q.answer()
-                ))
-                .toList();
-
-        GameSession session = new GameSession(questions);
-        sessionMap.put(roomId, session);
-
-        sendCurrentQuestion(roomId);
-    }
 
     public void startGame(String roomId, List<String> playerEmails) {
         List<QuizResDto> quizzes = quizService
@@ -70,14 +51,14 @@ public class WSRoomService {
                 ))
                 .toList();
 
-        GameSession session = new GameSession(questions, playerEmails);
+        RandomGameSession session = new RandomGameSession(questions, playerEmails);
         sessionMap.put(roomId, session);
 
         sendCurrentQuestion(roomId);
     }
 
     public void sendCurrentQuestion(String roomId) {
-        GameSession session = sessionMap.get(roomId);
+        RandomGameSession session = sessionMap.get(roomId);
         if (session == null || session.isFinished()) return;
 
         Question q = session.getCurrentQuestion();
@@ -98,7 +79,7 @@ public class WSRoomService {
     }
 
     private void startQuestionTimer(String roomId, int seconds) {
-        GameSession session = sessionMap.get(roomId);
+        RandomGameSession session = sessionMap.get(roomId);
         if (session == null) return;
 
         // 기존 타이머들 취소
@@ -167,7 +148,7 @@ public class WSRoomService {
                                 broadcastToRoom(roomId, "LOADING", "3초 후 다음 문제가 전송됩니다.");
                                 scheduler.schedule(() -> {
                                     synchronized (roomLocks.get(roomId)) {
-                                        GameSession currentSession = sessionMap.get(roomId);
+                                        RandomGameSession currentSession = sessionMap.get(roomId);
                                         if (currentSession != null && !currentSession.isFinished()) {
                                             sendCurrentQuestion(roomId);
                                         }
@@ -197,7 +178,7 @@ public class WSRoomService {
 
     @Transactional
     public void receiveAnswer(String roomId, String email, AnswerRequest answerRequest) {
-        GameSession session = sessionMap.get(roomId);
+        RandomGameSession session = sessionMap.get(roomId);
         if (session == null || session.isFinished()) return;
 
         int submittedIndex = answerRequest.index();
@@ -269,7 +250,7 @@ public class WSRoomService {
                     broadcastToRoom(roomId, "LOADING", "3초 후 다음 문제가 전송됩니다.");
                     scheduler.schedule(() -> {
                         synchronized (roomLocks.get(roomId)) {
-                            GameSession currentSession = sessionMap.get(roomId);
+                            RandomGameSession currentSession = sessionMap.get(roomId);
                             if (currentSession != null && !currentSession.isFinished()) {
                                 sendCurrentQuestion(roomId);
                             }
@@ -281,7 +262,7 @@ public class WSRoomService {
     }
 
 
-    private void handleGameEnd(String roomId, GameSession session) {
+    private void handleGameEnd(String roomId, RandomGameSession session) {
         // 랭킹 데이터 생성
         Map<String, Integer> scores = session.getCurrentScores();
         List<String> allPlayerEmails = session.getAllPlayerEmails();
@@ -378,7 +359,7 @@ public class WSRoomService {
     }
 
     public void resendCurrentQuestionToUser(String roomId) {
-        GameSession session = sessionMap.get(roomId);
+        RandomGameSession session = sessionMap.get(roomId);
         if (session == null || session.isFinished()) return;
 
         Question q = session.getCurrentQuestion();

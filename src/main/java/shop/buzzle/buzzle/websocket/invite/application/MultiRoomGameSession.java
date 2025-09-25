@@ -2,7 +2,7 @@ package shop.buzzle.buzzle.websocket.invite.application;
 
 import lombok.Getter;
 import shop.buzzle.buzzle.quiz.domain.QuizCategory;
-import shop.buzzle.buzzle.websocket.random.api.dto.Question;
+import shop.buzzle.buzzle.websocket.dto.Question;
 
 import java.util.HashMap;
 import java.util.List;
