@@ -1,4 +1,4 @@
-package shop.buzzle.buzzle.websocket.random.api;
+package shop.buzzle.buzzle.websocket.api;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
@@ -12,23 +12,23 @@ import shop.buzzle.buzzle.websocket.application.WebSocketService;
 
 @Controller
 @RequiredArgsConstructor
-public class RandomWebSocketController {
+public class WebSocketController {
 
     private final WebSocketService webSocketService;
     private final RandomRoomService wsRoomService;
 
-    // 보내는 경로 예시) /app/room/1
+    // 초대 퀴즈 대결용 구독 경로
     @MessageMapping("/room/{roomId}")
-    public void processMessage(
+    public void invite(
             @DestinationVariable String roomId,
             SimpMessageHeaderAccessor headerAccessor,
             String message) {
         webSocketService.sendMessage(headerAccessor, roomId, message);
     }
 
-    // 유저가 보내는 메세지 가공.
+    // 랜덤 매칭 퀴즈 대결용 구독 경로
     @MessageMapping("/game/{roomId}")
-    public void processGameMessage(
+    public void random(
             @DestinationVariable String roomId,
             SimpMessageHeaderAccessor headerAccessor,
             String message) {
@@ -37,6 +37,7 @@ public class RandomWebSocketController {
         webSocketService.sendGameMessage(roomId, username, message);
     }
 
+    // 랜덤 매칭 정답 대출 구독 경로
     @MessageMapping("/game/{roomId}/answer")
     public void receiveAnswer(
             @DestinationVariable String roomId,

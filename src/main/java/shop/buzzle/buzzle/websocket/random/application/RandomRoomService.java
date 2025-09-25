@@ -262,7 +262,6 @@ public class RandomRoomService {
         }
     }
 
-
     private void handleGameEnd(String roomId, RandomGameSession session) {
         // 랭킹 데이터 생성
         Map<String, Integer> scores = session.getCurrentScores();
