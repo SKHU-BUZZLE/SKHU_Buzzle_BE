@@ -85,9 +85,6 @@ InviteRoomService {
             throw new MultiRoomFullException();
         }
 
-        Member player = memberRepository.findByEmail(playerEmail)
-                .orElseThrow(MemberNotFoundException::new);
-
         // 첫 유저가 방장이 됨
         if (room.getCurrentPlayerCount() == 0) {
             room.setHost(playerEmail);
@@ -258,7 +255,7 @@ InviteRoomService {
                     );
                 })
                 .sorted((p1, p2) -> Integer.compare(p2.score(), p1.score())) // 점수 내림차순
-                .collect(Collectors.toList());
+                .toList();
 
         // 랭킹 설정 및 동점 처리
         int currentRank = 1;

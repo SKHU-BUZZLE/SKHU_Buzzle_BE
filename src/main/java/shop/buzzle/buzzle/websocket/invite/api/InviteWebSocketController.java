@@ -60,8 +60,7 @@ public class InviteWebSocketController {
     // 재연결
     @MessageMapping("/room/{roomId}/reconnect")
     public void handleReconnect(
-            @DestinationVariable String roomId,
-            SimpMessageHeaderAccessor headerAccessor
+            @DestinationVariable String roomId
     ) {
         multiRoomWebSocketService.resendCurrentQuestionToUser(roomId);
     }
