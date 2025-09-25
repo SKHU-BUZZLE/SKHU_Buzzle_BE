@@ -2,7 +2,7 @@ package shop.buzzle.buzzle.websocket.invite.api.dto.response;
 
 import shop.buzzle.buzzle.quiz.domain.QuizCategory;
 
-public record MultiRoomCreateResDto(
+public record invitedRoomCreateResDto(
         String inviteCode,
         int maxPlayers,
         QuizCategory category,

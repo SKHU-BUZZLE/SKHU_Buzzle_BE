@@ -10,11 +10,11 @@ import org.springframework.transaction.annotation.Transactional;
 import shop.buzzle.buzzle.member.domain.Member;
 import shop.buzzle.buzzle.member.domain.repository.MemberRepository;
 import shop.buzzle.buzzle.member.exception.MemberNotFoundException;
-import shop.buzzle.buzzle.websocket.invite.api.dto.request.MultiRoomJoinReqDto;
-import shop.buzzle.buzzle.websocket.invite.api.dto.response.MultiRoomEventResponse;
-import shop.buzzle.buzzle.websocket.invite.api.dto.response.GameEndResponseDto;
-import shop.buzzle.buzzle.websocket.invite.domain.MultiRoom;
-import shop.buzzle.buzzle.websocket.invite.event.MultiRoomGameStartEvent;
+import shop.buzzle.buzzle.websocket.invite.api.dto.request.InvitedRoomJoinReqDto;
+import shop.buzzle.buzzle.websocket.invite.api.dto.response.invitedRoomEventResDto;
+import shop.buzzle.buzzle.websocket.invite.api.dto.response.GameEndResDto;
+import shop.buzzle.buzzle.websocket.invite.api.dto.InvitedRoom;
+import shop.buzzle.buzzle.websocket.invite.api.dto.request.GameStartDto;
 import shop.buzzle.buzzle.websocket.invite.exception.MultiRoomNotFoundException;
 import shop.buzzle.buzzle.quiz.api.dto.request.QuizSizeReqDto;
 import shop.buzzle.buzzle.quiz.api.dto.response.QuizResDto;
@@ -29,23 +29,24 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
+import shop.buzzle.buzzle.websocket.invite.game.application.InviteGameSession;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class MultiRoomWebSocketService {
 
-    private final MultiRoomService multiRoomService;
+    private final InviteRoomService inviteRoomService;
     private final QuizService quizService;
     private final MemberRepository memberRepository;
     private final SimpMessageSendingOperations messagingTemplate;
 
-    private final Map<String, MultiRoomGameSession> gameSessions = new ConcurrentHashMap<>();
+    private final Map<String, InviteGameSession> gameSessions = new ConcurrentHashMap<>();
     private final Map<String, Object> roomLocks = new ConcurrentHashMap<>();
     private final Map<String, List<ScheduledFuture<?>>> roomTimers = new ConcurrentHashMap<>();
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(10);
 
-    public void joinRoom(String playerEmail, MultiRoomJoinReqDto request, SimpMessageHeaderAccessor headerAccessor) {
+    public void joinRoom(String playerEmail, InvitedRoomJoinReqDto request, SimpMessageHeaderAccessor headerAccessor) {
         try {
             // 널 값 검증
             if (playerEmail == null || playerEmail.trim().isEmpty()) {
@@ -58,7 +59,7 @@ public class MultiRoomWebSocketService {
 
             log.info("🚪 [ROOM_JOIN_START] Player: {}, InviteCode: {}", playerEmail, request.inviteCode());
 
-            var roomInfo = multiRoomService.joinRoom(playerEmail, request);
+            var roomInfo = inviteRoomService.joinRoom(playerEmail, request);
 
             if (roomInfo == null) {
                 throw new RuntimeException("방 참가 응답이 null입니다.");
@@ -82,10 +83,10 @@ public class MultiRoomWebSocketService {
             messagingTemplate.convertAndSendToUser(
                     playerEmail,
                     "/queue/room",
-                    MultiRoomEventResponse.joinedRoom(roomInfo)
+                    invitedRoomEventResDto.joinedRoom(roomInfo)
             );
 
-            MultiRoom room = multiRoomService.getRoom(roomId);
+            InvitedRoom room = inviteRoomService.getRoom(roomId);
             if (room == null) {
                 log.error("❌ [ROOM_JOIN_ERROR] room is null after join. roomId: {}", roomId);
                 throw new RuntimeException("방 참가 후 방을 찾을 수 없습니다.");
@@ -97,7 +98,7 @@ public class MultiRoomWebSocketService {
             // 방 전체에 입장 알림
             messagingTemplate.convertAndSend(
                     "/topic/room/" + inviteCode,
-                    MultiRoomEventResponse.playerJoined(player)
+                    invitedRoomEventResDto.playerJoined(player)
             );
 
         } catch (Exception e) {
@@ -108,7 +109,7 @@ public class MultiRoomWebSocketService {
                     messagingTemplate.convertAndSendToUser(
                             playerEmail,
                             "/queue/room",
-                            MultiRoomEventResponse.error("방 참가 실패: " + e.getMessage())
+                            invitedRoomEventResDto.error("방 참가 실패: " + e.getMessage())
                     );
                 } catch (Exception sendError) {
                     log.error("❌ [ERROR_SEND_FAILED] Failed to send error message to user: {}", sendError.getMessage());
@@ -119,19 +120,19 @@ public class MultiRoomWebSocketService {
 
     public void leaveRoom(String roomId, String playerEmail) {
         try {
-            MultiRoom room = multiRoomService.getRoom(roomId);
+            InvitedRoom room = inviteRoomService.getRoom(roomId);
             if (room == null) return;
 
             String inviteCode = room.getInviteCode();
             boolean isHost = room.isHost(playerEmail);
 
-            multiRoomService.leaveRoom(roomId, playerEmail);
+            inviteRoomService.leaveRoom(roomId, playerEmail);
 
             // 방장이 나가면 방 폭파, 아니면 퇴장 알림
             if (isHost) {
                 messagingTemplate.convertAndSend(
                         "/topic/room/" + inviteCode,
-                        MultiRoomEventResponse.message("방장이 퇴장하여 방이 해체되었습니다.")
+                        invitedRoomEventResDto.message("방장이 퇴장하여 방이 해체되었습니다.")
                 );
                 gameSessions.remove(roomId);
                 roomLocks.remove(roomId);
@@ -144,7 +145,7 @@ public class MultiRoomWebSocketService {
 
                 messagingTemplate.convertAndSend(
                         "/topic/room/" + inviteCode,
-                        MultiRoomEventResponse.playerLeft(playerName, playerEmail)
+                        invitedRoomEventResDto.playerLeft(playerName, playerEmail)
                 );
                 log.info("✅ [PLAYER_LEFT] Player: {} ({}), InviteCode: {}", playerName, playerEmail, inviteCode);
             }
@@ -155,7 +156,7 @@ public class MultiRoomWebSocketService {
 
     public void startGame(String roomId, String hostEmail) {
         try {
-            MultiRoom room = multiRoomService.getRoom(roomId);
+            InvitedRoom room = inviteRoomService.getRoom(roomId);
             if (room == null) {
                 throw new MultiRoomNotFoundException();
             }
@@ -167,27 +168,27 @@ public class MultiRoomWebSocketService {
 
             messagingTemplate.convertAndSend(
                     "/topic/room/" + inviteCode,
-                    MultiRoomEventResponse.gameStartNotification()
+                    invitedRoomEventResDto.gameStartNotification()
             );
 
-            multiRoomService.startGame(roomId, hostEmail);
+            inviteRoomService.startGame(roomId, hostEmail);
 
         } catch (Exception e) {
-            MultiRoom room = multiRoomService.getRoom(roomId);
+            InvitedRoom room = inviteRoomService.getRoom(roomId);
             String inviteCode = room != null ? room.getInviteCode() : "unknown";
 
             log.error("❌ [GAME_START_ERROR] Room: {}, Error: {}", inviteCode, e.getMessage());
 
             messagingTemplate.convertAndSend(
                     "/topic/room/" + inviteCode,
-                    MultiRoomEventResponse.error("게임 시작 실패: " + e.getMessage())
+                    invitedRoomEventResDto.error("게임 시작 실패: " + e.getMessage())
             );
         }
     }
 
     @Transactional
     public void startMultiRoomGame(String roomId) {
-        MultiRoom room = multiRoomService.getRoom(roomId);
+        InvitedRoom room = inviteRoomService.getRoom(roomId);
         if (room == null) throw new MultiRoomNotFoundException();
 
         String inviteCode = room.getInviteCode();
@@ -207,7 +208,7 @@ public class MultiRoomWebSocketService {
                 ))
                 .toList();
 
-        MultiRoomGameSession session = new MultiRoomGameSession(
+        InviteGameSession session = new InviteGameSession(
                 roomId,
                 questions,
                 room.getPlayerEmails(),
@@ -231,11 +232,11 @@ public class MultiRoomWebSocketService {
     }
 
     public void sendCurrentQuestion(String roomId) {
-        MultiRoom room = multiRoomService.getRoom(roomId);
+        InvitedRoom room = inviteRoomService.getRoom(roomId);
         if (room == null) return;
         String inviteCode = room.getInviteCode();
 
-        MultiRoomGameSession session = gameSessions.get(roomId);
+        InviteGameSession session = gameSessions.get(roomId);
         if (session == null || session.isFinished()) return;
 
         Question q = session.getCurrentQuestion();
@@ -257,7 +258,7 @@ public class MultiRoomWebSocketService {
     }
 
     private void startQuestionTimer(String roomId, String inviteCode, int seconds) {
-        MultiRoomGameSession session = gameSessions.get(roomId);
+        InviteGameSession session = gameSessions.get(roomId);
         if (session == null) return;
 
         // 기존 타이머들 취소
@@ -294,7 +295,7 @@ public class MultiRoomWebSocketService {
             messagingTemplate.convertAndSend("/topic/room/" + inviteCode, timeUpPayload);
 
             // 시간 초과 시 모든 플레이어의 life 감소
-            MultiRoom room = multiRoomService.getRoom(roomId);
+            InvitedRoom room = inviteRoomService.getRoom(roomId);
             if (room != null) {
                 for (String playerEmail : room.getPlayerEmails()) {
                     Member member = memberRepository.findByEmail(playerEmail)
@@ -360,11 +361,11 @@ public class MultiRoomWebSocketService {
 
     @Transactional
     public void receiveMultiRoomAnswer(String roomId, String email, AnswerRequest answerRequest) {
-        MultiRoom room = multiRoomService.getRoom(roomId);
+        InvitedRoom room = inviteRoomService.getRoom(roomId);
         if (room == null) return;
 
         String inviteCode = room.getInviteCode();
-        MultiRoomGameSession session = gameSessions.get(roomId);
+        InviteGameSession session = gameSessions.get(roomId);
         if (session == null || session.isFinished()) return;
 
         if (answerRequest.questionIndex() != session.getCurrentQuestionIndex()) return;
@@ -472,8 +473,8 @@ public class MultiRoomWebSocketService {
         }
     }
 
-    private void handleMultiRoomGameEnd(String roomId, MultiRoomGameSession session) {
-        MultiRoom room = multiRoomService.getRoom(roomId);
+    private void handleMultiRoomGameEnd(String roomId, InviteGameSession session) {
+        InvitedRoom room = inviteRoomService.getRoom(roomId);
         if (room == null) return;
 
         String inviteCode = room.getInviteCode();
@@ -481,7 +482,7 @@ public class MultiRoomWebSocketService {
         // 랭킹 데이터 생성
         Map<String, Integer> scores = session.getCurrentScores();
         List<String> allPlayerEmails = room.getPlayerEmails();
-        GameEndResponseDto.GameEndData gameEndData = multiRoomService.createGameEndRanking(scores, allPlayerEmails);
+        GameEndResDto.GameEndData gameEndData = inviteRoomService.createGameEndRanking(scores, allPlayerEmails);
 
         // 우승자에게 점수 부여
         String winner = session.getWinner();
@@ -501,7 +502,7 @@ public class MultiRoomWebSocketService {
         }
 
         // 랭킹 정보와 함께 게임 종료 메시지 전송
-        MultiRoomEventResponse gameEndResponse = MultiRoomEventResponse.gameEndWithRanking(gameEndData);
+        invitedRoomEventResDto gameEndResponse = invitedRoomEventResDto.gameEndWithRanking(gameEndData);
         messagingTemplate.convertAndSend("/topic/room/" + inviteCode, gameEndResponse);
 
         // 게임 세션 정리
@@ -511,17 +512,17 @@ public class MultiRoomWebSocketService {
         cancelRoomTimers(roomId);
 
         // 방 폭파
-        multiRoomService.disbandRoomAfterGame(roomId);
+        inviteRoomService.disbandRoomAfterGame(roomId);
 
         log.info("💥 [ROOM_DISBANDED] Room: {} disbanded after game completion", inviteCode);
     }
 
     public void resendCurrentQuestionToUser(String roomId) {
-        MultiRoom room = multiRoomService.getRoom(roomId);
+        InvitedRoom room = inviteRoomService.getRoom(roomId);
         if (room == null) return;
 
         String inviteCode = room.getInviteCode();
-        MultiRoomGameSession session = gameSessions.get(roomId);
+        InviteGameSession session = gameSessions.get(roomId);
         if (session == null || session.isFinished()) return;
 
         Question q = session.getCurrentQuestion();
@@ -529,7 +530,7 @@ public class MultiRoomWebSocketService {
 
         messagingTemplate.convertAndSend(
                 "/topic/room/" + inviteCode,
-                MultiRoomEventResponse.question(
+                invitedRoomEventResDto.question(
                         q.text(),
                         q.options(),
                         session.getCurrentQuestionIndex()
@@ -538,7 +539,7 @@ public class MultiRoomWebSocketService {
     }
 
     @EventListener
-    public void handleMultiRoomGameStart(MultiRoomGameStartEvent event) {
+    public void handleMultiRoomGameStart(GameStartDto event) {
         startMultiRoomGame(event.roomId());
     }
 }

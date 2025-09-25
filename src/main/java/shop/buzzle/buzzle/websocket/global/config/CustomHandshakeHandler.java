@@ -1,4 +1,4 @@
-package shop.buzzle.buzzle.websocket.global.interceptor;
+package shop.buzzle.buzzle.websocket.global.config;
 
 import java.security.Principal;
 import java.util.Map;
@@ -14,11 +14,8 @@ public class CustomHandshakeHandler extends DefaultHandshakeHandler {
             ServerHttpRequest request,
             WebSocketHandler wsHandler,
             Map<String, Object> attributes) {
-
-        // attributes는 HandshakeInterceptor에서 설정한 것
         String userEmail = (String) attributes.get("userEmail");
 
-        // Principal로 래핑해서 반환
         return new StompPrincipal(userEmail);
     }
 }

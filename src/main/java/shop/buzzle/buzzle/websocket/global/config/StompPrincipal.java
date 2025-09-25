@@ -1,4 +1,4 @@
-package shop.buzzle.buzzle.websocket.global.interceptor;
+package shop.buzzle.buzzle.websocket.global.config;
 
 import java.security.Principal;
 

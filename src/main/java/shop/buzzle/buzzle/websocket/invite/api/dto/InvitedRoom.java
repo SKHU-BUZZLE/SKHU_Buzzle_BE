@@ -1,4 +1,4 @@
-package shop.buzzle.buzzle.websocket.invite.domain;
+package shop.buzzle.buzzle.websocket.invite.api.dto;
 
 import lombok.Getter;
 import shop.buzzle.buzzle.quiz.domain.QuizCategory;
@@ -9,7 +9,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 
 @Getter
-public class MultiRoom {
+public class InvitedRoom {
     private final String roomId;
     private final String inviteCode;
     private String hostEmail;
@@ -21,8 +21,8 @@ public class MultiRoom {
     private final List<String> playerEmails = Collections.synchronizedList(new ArrayList<>());
     private boolean gameStarted = false;
 
-    public MultiRoom(String roomId, String inviteCode, 
-                    int maxPlayers, QuizCategory category, int quizCount) {
+    public InvitedRoom(String roomId, String inviteCode,
+                       int maxPlayers, QuizCategory category, int quizCount) {
         this.roomId = roomId;
         this.inviteCode = inviteCode;
         this.maxPlayers = maxPlayers;

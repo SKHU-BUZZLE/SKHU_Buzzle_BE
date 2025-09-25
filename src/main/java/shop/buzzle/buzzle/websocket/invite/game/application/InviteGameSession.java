@@ -1,4 +1,4 @@
-package shop.buzzle.buzzle.websocket.invite.application;
+package shop.buzzle.buzzle.websocket.invite.game.application;
 
 import lombok.Getter;
 import shop.buzzle.buzzle.quiz.domain.QuizCategory;
@@ -10,7 +10,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @Getter
-public class MultiRoomGameSession {
+public class InviteGameSession {
     private final String roomId;
     private final List<Question> questions;
     private final List<String> playerEmails;
@@ -24,8 +24,8 @@ public class MultiRoomGameSession {
     private final AtomicBoolean transitionLock = new AtomicBoolean(false);
     private final AtomicBoolean timerRunning = new AtomicBoolean(false);
 
-    public MultiRoomGameSession(String roomId, List<Question> questions,
-                               List<String> playerEmails, QuizCategory category) {
+    public InviteGameSession(String roomId, List<Question> questions,
+                             List<String> playerEmails, QuizCategory category) {
         this.roomId = roomId;
         this.questions = questions;
         this.playerEmails = List.copyOf(playerEmails);

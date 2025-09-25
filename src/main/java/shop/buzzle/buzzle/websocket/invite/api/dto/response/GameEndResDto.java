@@ -2,12 +2,12 @@ package shop.buzzle.buzzle.websocket.invite.api.dto.response;
 
 import java.util.List;
 
-public record GameEndResponseDto(
+public record GameEndResDto(
         String type,
         String message,
         GameEndData data
 ) {
-    public static GameEndResponseDto of(List<PlayerRanking> rankings, boolean hasTie) {
+    public static GameEndResDto of(List<PlayerRanking> rankings, boolean hasTie) {
         String message;
         if (hasTie) {
             message = "게임이 종료되었습니다! 동점자가 있습니다. 방이 해체됩니다.";
@@ -16,7 +16,7 @@ public record GameEndResponseDto(
             message = "게임이 종료되었습니다! 우승자: " + winner.name() + ". 방이 해체됩니다.";
         }
 
-        return new GameEndResponseDto(
+        return new GameEndResDto(
                 "GAME_END_RANKING",
                 message,
                 new GameEndData(rankings, hasTie)

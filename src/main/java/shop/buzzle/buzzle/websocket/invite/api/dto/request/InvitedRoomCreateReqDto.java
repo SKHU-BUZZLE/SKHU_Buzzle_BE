@@ -2,12 +2,12 @@ package shop.buzzle.buzzle.websocket.invite.api.dto.request;
 
 import shop.buzzle.buzzle.quiz.domain.QuizCategory;
 
-public record MultiRoomCreateReqDto(
+public record InvitedRoomCreateReqDto(
         int maxPlayers,
         QuizCategory category,
         int quizCount
 ) {
-    public MultiRoomCreateReqDto {
+    public InvitedRoomCreateReqDto {
         if (maxPlayers < 2 || maxPlayers > 10) {
             throw new IllegalArgumentException("최대 플레이어 수는 2명에서 10명 사이여야 합니다.");
         }

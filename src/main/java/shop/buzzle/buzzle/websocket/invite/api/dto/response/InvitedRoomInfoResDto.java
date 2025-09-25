@@ -3,7 +3,7 @@ package shop.buzzle.buzzle.websocket.invite.api.dto.response;
 import shop.buzzle.buzzle.quiz.domain.QuizCategory;
 import java.util.List;
 
-public record MultiRoomInfoResDto(
+public record InvitedRoomInfoResDto(
         String roomId,
         String inviteCode,
         String hostName,

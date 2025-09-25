@@ -6,18 +6,18 @@ import org.springframework.stereotype.Service;
 import shop.buzzle.buzzle.member.domain.Member;
 import shop.buzzle.buzzle.member.domain.repository.MemberRepository;
 import shop.buzzle.buzzle.member.exception.MemberNotFoundException;
-import shop.buzzle.buzzle.websocket.invite.api.dto.request.MultiRoomCreateReqDto;
-import shop.buzzle.buzzle.websocket.invite.api.dto.request.MultiRoomJoinReqDto;
-import shop.buzzle.buzzle.websocket.invite.api.dto.response.MultiRoomCreateResDto;
-import shop.buzzle.buzzle.websocket.invite.api.dto.response.MultiRoomInfoResDto;
+import shop.buzzle.buzzle.websocket.invite.api.dto.request.InvitedRoomCreateReqDto;
+import shop.buzzle.buzzle.websocket.invite.api.dto.request.InvitedRoomJoinReqDto;
+import shop.buzzle.buzzle.websocket.invite.api.dto.response.invitedRoomCreateResDto;
+import shop.buzzle.buzzle.websocket.invite.api.dto.response.InvitedRoomInfoResDto;
 import shop.buzzle.buzzle.websocket.invite.api.dto.response.InviteCodeValidationResDto;
-import shop.buzzle.buzzle.websocket.invite.api.dto.response.GameEndResponseDto;
-import shop.buzzle.buzzle.websocket.invite.domain.MultiRoom;
+import shop.buzzle.buzzle.websocket.invite.api.dto.response.GameEndResDto;
+import shop.buzzle.buzzle.websocket.invite.api.dto.InvitedRoom;
 import shop.buzzle.buzzle.websocket.invite.exception.MultiRoomFullException;
 import shop.buzzle.buzzle.websocket.invite.exception.MultiRoomNotFoundException;
 import shop.buzzle.buzzle.websocket.invite.exception.InvalidInviteCodeException;
 import shop.buzzle.buzzle.websocket.invite.exception.GameAlreadyStartedException;
-import shop.buzzle.buzzle.websocket.invite.event.MultiRoomGameStartEvent;
+import shop.buzzle.buzzle.websocket.invite.api.dto.request.GameStartDto;
 
 import java.security.SecureRandom;
 import java.util.*;
@@ -27,26 +27,26 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class
-MultiRoomService {
+InviteRoomService {
 
     private final MemberRepository memberRepository;
     private final ApplicationEventPublisher eventPublisher;
 
-    private final Map<String, MultiRoom> roomsByRoomId = new ConcurrentHashMap<>();
+    private final Map<String, InvitedRoom> roomsByRoomId = new ConcurrentHashMap<>();
     private final Map<String, String> inviteCodeToRoomId = new ConcurrentHashMap<>();
 
     private static final String INVITE_CODE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     private static final int INVITE_CODE_LENGTH = 6;
     private final SecureRandom random = new SecureRandom();
 
-    public MultiRoomCreateResDto createRoom(String hostEmail, MultiRoomCreateReqDto request) {
+    public invitedRoomCreateResDto createRoom(String hostEmail, InvitedRoomCreateReqDto request) {
         Member host = memberRepository.findByEmail(hostEmail)
                 .orElseThrow(MemberNotFoundException::new);
 
         String roomId = UUID.randomUUID().toString();
         String inviteCode = generateInviteCode();
 
-        MultiRoom room = new MultiRoom(
+        InvitedRoom room = new InvitedRoom(
                 roomId,
                 inviteCode,
                 request.maxPlayers(),
@@ -57,7 +57,7 @@ MultiRoomService {
         roomsByRoomId.put(roomId, room);
         inviteCodeToRoomId.put(inviteCode, roomId);
 
-        return new MultiRoomCreateResDto(
+        return new invitedRoomCreateResDto(
                 inviteCode,
                 request.maxPlayers(),
                 request.category(),
@@ -66,13 +66,13 @@ MultiRoomService {
         );
     }
 
-    public MultiRoomInfoResDto joinRoom(String playerEmail, MultiRoomJoinReqDto request) {
+    public InvitedRoomInfoResDto joinRoom(String playerEmail, InvitedRoomJoinReqDto request) {
         String roomId = inviteCodeToRoomId.get(request.inviteCode());
         if (roomId == null) {
             throw new InvalidInviteCodeException();
         }
 
-        MultiRoom room = roomsByRoomId.get(roomId);
+        InvitedRoom room = roomsByRoomId.get(roomId);
         if (room == null) {
             throw new MultiRoomNotFoundException();
         }
@@ -102,7 +102,7 @@ MultiRoomService {
     }
 
     public void leaveRoom(String roomId, String playerEmail) {
-        MultiRoom room = roomsByRoomId.get(roomId);
+        InvitedRoom room = roomsByRoomId.get(roomId);
         if (room == null) {
             return;
         }
@@ -115,7 +115,7 @@ MultiRoomService {
     }
 
     public void startGame(String roomId, String hostEmail) {
-        MultiRoom room = roomsByRoomId.get(roomId);
+        InvitedRoom room = roomsByRoomId.get(roomId);
         if (room == null) {
             throw new MultiRoomNotFoundException();
         }
@@ -125,10 +125,10 @@ MultiRoomService {
         }
 
         room.startGame();
-        eventPublisher.publishEvent(new MultiRoomGameStartEvent(roomId));
+        eventPublisher.publishEvent(new GameStartDto(roomId));
     }
 
-    public MultiRoom getRoom(String roomId) {
+    public InvitedRoom getRoom(String roomId) {
         return roomsByRoomId.get(roomId);
     }
 
@@ -144,7 +144,7 @@ MultiRoomService {
         }
 
         // 방 정보 확인
-        MultiRoom room = roomsByRoomId.get(roomId);
+        InvitedRoom room = roomsByRoomId.get(roomId);
         if (room == null) {
             // 초대코드는 있지만 방이 없는 경우 (데이터 일관성 문제)
             inviteCodeToRoomId.remove(inviteCode);
@@ -182,18 +182,18 @@ MultiRoomService {
     }
 
     private void disbandRoom(String roomId) {
-        MultiRoom room = roomsByRoomId.remove(roomId);
+        InvitedRoom room = roomsByRoomId.remove(roomId);
         if (room != null) {
             inviteCodeToRoomId.remove(room.getInviteCode());
         }
     }
 
-    public MultiRoomInfoResDto buildRoomInfo(MultiRoom room) {
-        List<MultiRoomInfoResDto.PlayerInfoDto> players = room.getPlayerEmails().stream()
+    public InvitedRoomInfoResDto buildRoomInfo(InvitedRoom room) {
+        List<InvitedRoomInfoResDto.PlayerInfoDto> players = room.getPlayerEmails().stream()
                 .map(email -> {
                     Member member = memberRepository.findByEmail(email)
                             .orElseThrow(MemberNotFoundException::new);
-                    return new MultiRoomInfoResDto.PlayerInfoDto(
+                    return new InvitedRoomInfoResDto.PlayerInfoDto(
                             member.getEmail(),
                             member.getName(),
                             member.getPicture() != null ? member.getPicture() : "",
@@ -202,7 +202,7 @@ MultiRoomService {
                 })
                 .toList();
 
-        return new MultiRoomInfoResDto(
+        return new InvitedRoomInfoResDto(
                 room.getRoomId(),
                 room.getInviteCode(),
                 getHostName(room.getHostEmail()),
@@ -240,15 +240,15 @@ MultiRoomService {
         return inviteCode;
     }
 
-    public GameEndResponseDto.GameEndData createGameEndRanking(Map<String, Integer> scores, List<String> allPlayerEmails) {
+    public GameEndResDto.GameEndData createGameEndRanking(Map<String, Integer> scores, List<String> allPlayerEmails) {
         // 모든 플레이어 정보 수집 (점수가 없는 플레이어는 0점)
-        List<GameEndResponseDto.PlayerRanking> rankings = allPlayerEmails.stream()
+        List<GameEndResDto.PlayerRanking> rankings = allPlayerEmails.stream()
                 .map(email -> {
                     Member member = memberRepository.findByEmail(email)
                             .orElseThrow(MemberNotFoundException::new);
                     int score = scores.getOrDefault(email, 0);
 
-                    return new GameEndResponseDto.PlayerRanking(
+                    return new GameEndResDto.PlayerRanking(
                             0, // rank는 나중에 설정
                             member.getEmail(),
                             member.getName(),
@@ -271,10 +271,10 @@ MultiRoomService {
             hasTie = true;
         }
 
-        List<GameEndResponseDto.PlayerRanking> finalRankings = new ArrayList<>();
+        List<GameEndResDto.PlayerRanking> finalRankings = new ArrayList<>();
 
         for (int i = 0; i < rankings.size(); i++) {
-            GameEndResponseDto.PlayerRanking player = rankings.get(i);
+            GameEndResDto.PlayerRanking player = rankings.get(i);
 
             // 이전 플레이어와 점수가 다르면 랭킹 업데이트
             if (i > 0 && player.score() != rankings.get(i - 1).score()) {
@@ -284,7 +284,7 @@ MultiRoomService {
             // 1등인지 확인 (최고 점수와 같은 점수)
             boolean isWinner = player.score() == maxScore && maxScore > 0;
 
-            finalRankings.add(new GameEndResponseDto.PlayerRanking(
+            finalRankings.add(new GameEndResDto.PlayerRanking(
                     currentRank,
                     player.email(),
                     player.name(),
@@ -294,6 +294,6 @@ MultiRoomService {
             ));
         }
 
-        return new GameEndResponseDto.GameEndData(finalRankings, hasTie);
+        return new GameEndResDto.GameEndData(finalRankings, hasTie);
     }
 }

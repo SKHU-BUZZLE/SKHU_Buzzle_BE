@@ -6,7 +6,7 @@ import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.stereotype.Controller;
-import shop.buzzle.buzzle.websocket.invite.api.dto.request.MultiRoomJoinReqDto;
+import shop.buzzle.buzzle.websocket.invite.api.dto.request.InvitedRoomJoinReqDto;
 import shop.buzzle.buzzle.websocket.invite.application.MultiRoomWebSocketService;
 import shop.buzzle.buzzle.websocket.dto.AnswerRequest;
 
@@ -16,17 +16,17 @@ public class InviteWebSocketController {
 
     private final MultiRoomWebSocketService multiRoomWebSocketService;
 
-    // 초대코드로 방 참가 (웹소켓)
+    // 초대코드로 방 참가
     @MessageMapping("/room/join")
     public void joinRoom(
             SimpMessageHeaderAccessor headerAccessor,
-            @Payload MultiRoomJoinReqDto request
+            @Payload InvitedRoomJoinReqDto request
     ) {
         String userEmail = (String) headerAccessor.getSessionAttributes().get("userEmail");
         multiRoomWebSocketService.joinRoom(userEmail, request, headerAccessor);
     }
 
-    // 방 나가기 (웹소켓)
+    // 방 나가기
     @MessageMapping("/room/{roomId}/leave")
     public void leaveRoom(
             @DestinationVariable String roomId,
@@ -36,7 +36,7 @@ public class InviteWebSocketController {
         multiRoomWebSocketService.leaveRoom(roomId, userEmail);
     }
 
-    // 게임 시작 (웹소켓)
+    // 게임 시작
     @MessageMapping("/room/{roomId}/start")
     public void startGame(
             @DestinationVariable String roomId,
@@ -46,7 +46,7 @@ public class InviteWebSocketController {
         multiRoomWebSocketService.startGame(roomId, userEmail);
     }
 
-    // 답변 제출 (웹소켓)
+    // 답변 제출
     @MessageMapping("/room/{roomId}/answer")
     public void submitAnswer(
             @DestinationVariable String roomId,
@@ -57,7 +57,7 @@ public class InviteWebSocketController {
         multiRoomWebSocketService.receiveMultiRoomAnswer(roomId, userEmail, answerRequest);
     }
 
-    // 재연결 (웹소켓)
+    // 재연결
     @MessageMapping("/room/{roomId}/reconnect")
     public void handleReconnect(
             @DestinationVariable String roomId,

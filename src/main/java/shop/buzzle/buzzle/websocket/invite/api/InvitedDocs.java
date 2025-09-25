@@ -8,9 +8,9 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import shop.buzzle.buzzle.global.template.RspTemplate;
-import shop.buzzle.buzzle.websocket.invite.api.dto.request.MultiRoomCreateReqDto;
+import shop.buzzle.buzzle.websocket.invite.api.dto.request.InvitedRoomCreateReqDto;
 import shop.buzzle.buzzle.websocket.invite.api.dto.request.InviteCodeValidationReqDto;
-import shop.buzzle.buzzle.websocket.invite.api.dto.response.MultiRoomCreateResDto;
+import shop.buzzle.buzzle.websocket.invite.api.dto.response.invitedRoomCreateResDto;
 import shop.buzzle.buzzle.websocket.invite.api.dto.response.InviteCodeValidationResDto;
 
 @Tag(name = "MultiRoom", description = "멀티플레이어 방 관리 API")
@@ -41,7 +41,7 @@ public interface InvitedDocs {
                             responseCode = "200",
                             description = "방 생성 성공",
                             content = @Content(
-                                    schema = @Schema(implementation = MultiRoomCreateResDto.class),
+                                    schema = @Schema(implementation = invitedRoomCreateResDto.class),
                                     examples = @ExampleObject(
                                             name = "성공 응답",
                                             value = """
@@ -94,13 +94,13 @@ public interface InvitedDocs {
                     )
             }
     )
-    RspTemplate<MultiRoomCreateResDto> createRoom(
+    RspTemplate<invitedRoomCreateResDto> createRoom(
             @Parameter(hidden = true) String email,
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
                     description = "방 생성 요청 정보",
                     required = true,
                     content = @Content(
-                            schema = @Schema(implementation = MultiRoomCreateReqDto.class),
+                            schema = @Schema(implementation = InvitedRoomCreateReqDto.class),
                             examples = @ExampleObject(
                                     name = "요청 예시",
                                     value = """
@@ -113,7 +113,7 @@ public interface InvitedDocs {
                             )
                     )
             )
-            MultiRoomCreateReqDto multiRoomCreateReqDto
+            InvitedRoomCreateReqDto invitedRoomCreateReqDto
     );
 
     @Operation(

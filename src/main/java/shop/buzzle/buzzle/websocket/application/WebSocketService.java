@@ -16,7 +16,7 @@ public class WebSocketService {
         return (String) headerAccessor.getSessionAttributes().get("userEmail");
     }
 
-    // 초대 기반 멀티룸 로직
+    // 초대 기반 멀티룸 로직. 클라이언트에서 구독해서 서버에서 주는 메세지를 받을 준비.
     public void sendMessage(
             SimpMessageHeaderAccessor headerAccessor, String roomId, String message) {
         String username = getUsernameFromSession(headerAccessor);
@@ -25,7 +25,7 @@ public class WebSocketService {
                 "/topic/room/" + roomId, WebSocketResponse.Send.of(username, message));
     }
 
-    // 랜덤 매칭 멀티룸 로직
+    // 랜덤 매칭 멀티룸 로직. 클라이언트에서 구독해서 서버에서 주는 메세지를 받을 준비.
     public void sendGameMessage(String roomId, String username, String message) {
         messagingTemplate.convertAndSend(
                 "/topic/game/" + roomId, WebSocketResponse.Send.of(username, message));

@@ -16,6 +16,7 @@ import org.springframework.http.server.ServletServerHttpRequest;
 import org.springframework.web.socket.WebSocketHandler;
 import org.springframework.web.socket.server.HandshakeInterceptor;
 import org.springframework.web.util.UriComponentsBuilder;
+import shop.buzzle.buzzle.websocket.global.config.StompPrincipal;
 
 @Slf4j
 public class WebsocketHandshakeInterceptor implements HandshakeInterceptor {
