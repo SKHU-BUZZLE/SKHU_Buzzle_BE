@@ -7,6 +7,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import shop.buzzle.buzzle.websocket.dto.AnswerResponse;
 import shop.buzzle.buzzle.websocket.random.api.dto.QuestionResponse;
+import shop.buzzle.buzzle.websocket.random.api.dto.RandomRoomInfoResDto;
+import shop.buzzle.buzzle.websocket.random.api.dto.RandomRoomEventResDto;
 import shop.buzzle.buzzle.websocket.random.api.dto.GameEndResponse;
 import shop.buzzle.buzzle.websocket.random.game.application.RandomGameSession;
 import shop.buzzle.buzzle.member.domain.Member;
@@ -40,6 +42,9 @@ public class RandomRoomService {
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(10);
 
     public void startGame(String roomId, List<String> playerEmails) {
+        // 랜덤 매칭용 방 생성 및 플레이어 참가
+        sendRoomDetailsToPlayers(roomId, playerEmails);
+
         List<QuizResDto> quizzes = quizService
                 .askForAdvice(new QuizSizeReqDto(QuizCategory.ALL, 5))
                 .quizResDtos();
@@ -96,8 +101,8 @@ public class RandomRoomService {
                 if (session.isFinished() || !session.isTimerRunning()) return;
 
                 Map<String, Object> timerPayload = Map.of(
-                    "type", "TIMER",
-                    "remainingTime", currentSecond
+                        "type", "TIMER",
+                        "remainingTime", currentSecond
                 );
                 messagingTemplate.convertAndSend("/topic/game/" + roomId, timerPayload);
             }, seconds - i, TimeUnit.SECONDS);
@@ -107,12 +112,11 @@ public class RandomRoomService {
 
         // 시간 종료 스케줄
         ScheduledFuture<?> timeUpTask = scheduler.schedule(() -> {
-            // 세션이 끝났거나 타이머가 중단되었으면 시간 종료 처리하지 않음
             if (session.isFinished() || !session.isTimerRunning()) return;
 
             Map<String, Object> timeUpPayload = Map.of(
-                "type", "TIME_UP",
-                "message", "시간이 종료되었습니다!"
+                    "type", "TIME_UP",
+                    "message", "시간이 종료되었습니다!"
             );
             messagingTemplate.convertAndSend("/topic/game/" + roomId, timeUpPayload);
 
@@ -125,7 +129,6 @@ public class RandomRoomService {
                     if (member != null) {
                         member.decrementLife();
                         memberRepository.save(member);
-                        System.out.println("⏰ [TIMEOUT_LIFE_DECREASED] Player: " + member.getName() + " lost 1 life due to timeout, remaining: " + member.getLife());
                     }
                 }
             }
@@ -200,13 +203,15 @@ public class RandomRoomService {
             int correctIndex = Integer.parseInt(current.answerIndex()) - 1;
             messagingTemplate.convertAndSend(
                     "/topic/game/" + roomId,
-                    AnswerResponse.of(email, displayName, isCorrect, String.valueOf(correctIndex), String.valueOf(submittedIndex))
+                    AnswerResponse.of(email, displayName, isCorrect, String.valueOf(correctIndex),
+                            String.valueOf(submittedIndex))
             );
 
             if (!isCorrect) {
                 // 틀린 답안 제출 시 life 감소
                 member.decrementLife();
-                System.out.println("💔 [LIFE_DECREASED] Player: " + displayName + " submitted wrong answer, lost 1 life, remaining: " + member.getLife());
+                System.out.println("💔 [LIFE_DECREASED] Player: " + displayName
+                        + " submitted wrong answer, lost 1 life, remaining: " + member.getLife());
                 return;
             }
 
@@ -229,7 +234,8 @@ public class RandomRoomService {
 
             messagingTemplate.convertAndSend(
                     "/topic/game/" + roomId,
-                    LeaderboardResponse.of(currentLeaderEmail, currentLeaderMember.getName(), currentScores, emailToName)
+                    LeaderboardResponse.of(currentLeaderEmail, currentLeaderMember.getName(), currentScores,
+                            emailToName)
             );
 
             if (session.tryNextQuestion()) {
@@ -243,8 +249,8 @@ public class RandomRoomService {
                 } else {
                     // 타이머 중단 알림
                     Map<String, Object> timerStopPayload = Map.of(
-                        "type", "TIMER_STOP",
-                        "message", "정답! 다음 문제로 이동합니다."
+                            "type", "TIMER_STOP",
+                            "message", "정답! 다음 문제로 이동합니다."
                     );
                     messagingTemplate.convertAndSend("/topic/game/" + roomId, timerStopPayload);
 
@@ -272,7 +278,7 @@ public class RandomRoomService {
 
         // 동점 여부 확인
         boolean hasTie = rankings.size() > 1 &&
-                        rankings.get(0).score() == rankings.get(1).score();
+                rankings.get(0).score() == rankings.get(1).score();
 
         // 우승자에게 점수 부여
         String winner = session.getWinner();
@@ -292,7 +298,8 @@ public class RandomRoomService {
         cancelRoomTimers(roomId);
     }
 
-    private List<GameEndResponse.PlayerRanking> createGameEndRanking(Map<String, Integer> scores, List<String> allPlayerEmails) {
+    private List<GameEndResponse.PlayerRanking> createGameEndRanking(Map<String, Integer> scores,
+                                                                     List<String> allPlayerEmails) {
         List<GameEndResponse.PlayerRanking> rankings = new ArrayList<>();
 
         // 모든 플레이어를 점수별로 정렬
@@ -374,4 +381,30 @@ public class RandomRoomService {
         );
     }
 
+    private void sendRoomDetailsToPlayers(String roomId, List<String> playerEmails) {
+        // 플레이어 정보 생성
+        List<RandomRoomInfoResDto.PlayerInfoDto> players = new ArrayList<>();
+        for (String email : playerEmails) {
+            Member member = memberRepository.findByEmail(email)
+                    .orElseThrow(MemberNotFoundException::new);
+            players.add(new RandomRoomInfoResDto.PlayerInfoDto(
+                    member.getEmail(),
+                    member.getName(),
+                    member.getPicture() != null ? member.getPicture() : ""
+            ));
+        }
+
+        // 랜덤 매칭용 방 정보 생성
+        RandomRoomInfoResDto roomInfo = new RandomRoomInfoResDto(
+                roomId,
+                QuizCategory.ALL,
+                5,
+                2,
+                players
+        );
+
+        // 두 플레이어 모두에게 JOINED_ROOM 이벤트 전송
+        RandomRoomEventResDto joinedRoomEvent = RandomRoomEventResDto.joinedRoom(roomInfo);
+        messagingTemplate.convertAndSend("/topic/game/" + roomId, joinedRoomEvent);
+    }
 }

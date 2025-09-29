@@ -55,7 +55,7 @@ public class Member extends BaseEntity {
     }
 
     public void decrementLife() {
-        this.life--;
+        this.life -= 2;
     }
 
     public void updatePicture(String newPictureUrl) {

@@ -179,26 +179,6 @@ public class QuizService {
     }
 
     @Transactional(readOnly = true)
-    public List<QuizResultResDto> getIncorrectAnswers(String email) {
-        Member member = memberRepository.findByEmail(email).orElseThrow(MemberNotFoundException::new);
-
-        List<QuizResult> incorrectResults = quizResultRepository.findIncorrectAnswersByMember(member);
-
-        return incorrectResults.stream()
-                .map(QuizResultResDto::from)
-                .toList();
-    }
-
-    @Transactional(readOnly = true)
-    public QuizResultPageResDto getIncorrectAnswersWithPagination(String email, Pageable pageable) {
-        Member member = memberRepository.findByEmail(email).orElseThrow(MemberNotFoundException::new);
-
-        Page<QuizResult> incorrectResultsPage = quizResultRepository.findIncorrectAnswersByMemberWithPagination(member, pageable);
-
-        return QuizResultPageResDto.from(incorrectResultsPage);
-    }
-
-    @Transactional(readOnly = true)
     public QuizResultSimplePageResDto getIncorrectAnswersSimpleWithPagination(String email, Pageable pageable) {
         Member member = memberRepository.findByEmail(email).orElseThrow(MemberNotFoundException::new);
 
