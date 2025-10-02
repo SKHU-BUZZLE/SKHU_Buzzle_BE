@@ -10,26 +10,27 @@ import org.springframework.transaction.annotation.Transactional;
 import shop.buzzle.buzzle.member.domain.Member;
 import shop.buzzle.buzzle.member.domain.repository.MemberRepository;
 import shop.buzzle.buzzle.member.exception.MemberNotFoundException;
-import shop.buzzle.buzzle.websocket.invite.api.dto.request.InvitedRoomJoinReqDto;
-import shop.buzzle.buzzle.websocket.invite.api.dto.response.invitedRoomEventResDto;
-import shop.buzzle.buzzle.websocket.invite.api.dto.response.GameEndResDto;
-import shop.buzzle.buzzle.websocket.invite.api.dto.InvitedRoom;
-import shop.buzzle.buzzle.websocket.invite.api.dto.request.GameStartDto;
-import shop.buzzle.buzzle.websocket.invite.exception.MultiRoomNotFoundException;
 import shop.buzzle.buzzle.quiz.api.dto.request.QuizSizeReqDto;
 import shop.buzzle.buzzle.quiz.api.dto.response.QuizResDto;
 import shop.buzzle.buzzle.quiz.application.QuizService;
 import shop.buzzle.buzzle.quiz.domain.QuizScore;
 import shop.buzzle.buzzle.websocket.dto.AnswerRequest;
-import shop.buzzle.buzzle.websocket.dto.Question;
 import shop.buzzle.buzzle.websocket.dto.AnswerResponse;
+import shop.buzzle.buzzle.websocket.dto.Question;
+import shop.buzzle.buzzle.websocket.dto.WebSocketEventDto;
+import shop.buzzle.buzzle.websocket.invite.api.dto.InvitedRoom;
+import shop.buzzle.buzzle.websocket.invite.api.dto.request.GameStartDto;
+import shop.buzzle.buzzle.websocket.invite.api.dto.request.InvitedRoomJoinReqDto;
+import shop.buzzle.buzzle.websocket.invite.api.dto.response.GameEndResDto;
+import shop.buzzle.buzzle.websocket.invite.api.dto.response.invitedRoomEventResDto;
+import shop.buzzle.buzzle.websocket.invite.exception.MultiRoomNotFoundException;
+import shop.buzzle.buzzle.websocket.invite.game.application.InviteGameSession;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
-import shop.buzzle.buzzle.websocket.invite.game.application.InviteGameSession;
 
 @Service
 @RequiredArgsConstructor
@@ -217,12 +218,7 @@ public class MultiRoomWebSocketService {
 
         gameSessions.put(roomId, session);
 
-        Map<String, Object> gameStartPayload = Map.of(
-            "type", "GAME_START",
-            "totalQuestions", session.getTotalQuestions(),
-            "countdownSeconds", 0
-        );
-        messagingTemplate.convertAndSend("/topic/room/" + inviteCode, gameStartPayload);
+        messagingTemplate.convertAndSend("/topic/room/" + inviteCode, invitedRoomEventResDto.gameStart(session.getTotalQuestions()));
 
         log.info("✅ [GAME_COUNTDOWN] Room: {}, Starting in 0.1 seconds...", inviteCode);
 
@@ -242,14 +238,7 @@ public class MultiRoomWebSocketService {
         Question q = session.getCurrentQuestion();
         if (q == null) return;
 
-        Map<String, Object> payload = Map.of(
-            "type", "QUESTION",
-            "question", q.text(),
-            "options", q.options(),
-            "questionIndex", session.getCurrentQuestionIndex()
-        );
-
-        messagingTemplate.convertAndSend("/topic/room/" + inviteCode, payload);
+        messagingTemplate.convertAndSend("/topic/room/" + inviteCode, invitedRoomEventResDto.question(q.text(), q.options(), session.getCurrentQuestionIndex()));
 
         // 타이머가 이미 실행 중이 아닌 경우에만 시작
         if (session.tryStartTimer()) {
@@ -273,11 +262,7 @@ public class MultiRoomWebSocketService {
                 // 세션이 끝났거나 타이머가 중단되었으면 타이머 중단
                 if (session.isFinished() || !session.isTimerRunning()) return;
 
-                Map<String, Object> timerPayload = Map.of(
-                    "type", "TIMER",
-                    "remainingTime", currentSecond
-                );
-                messagingTemplate.convertAndSend("/topic/room/" + inviteCode, timerPayload);
+                messagingTemplate.convertAndSend("/topic/room/" + inviteCode, WebSocketEventDto.timer(currentSecond));
             }, seconds - i, TimeUnit.SECONDS);
 
             timerTasks.add(timerTask);
@@ -288,11 +273,7 @@ public class MultiRoomWebSocketService {
             // 세션이 끝났거나 타이머가 중단되었으면 시간 종료 처리하지 않음
             if (session.isFinished() || !session.isTimerRunning()) return;
 
-            Map<String, Object> timeUpPayload = Map.of(
-                "type", "TIME_UP",
-                "message", "시간이 종료되었습니다!"
-            );
-            messagingTemplate.convertAndSend("/topic/room/" + inviteCode, timeUpPayload);
+            messagingTemplate.convertAndSend("/topic/room/" + inviteCode, WebSocketEventDto.timeUp());
 
             // 시간 초과 시 모든 플레이어의 life 감소
             InvitedRoom room = inviteRoomService.getRoom(roomId);
@@ -325,11 +306,7 @@ public class MultiRoomWebSocketService {
                                 handleMultiRoomGameEnd(roomId, session);
                                 roomLocks.remove(roomId);
                             } else {
-                                Map<String, Object> loadingPayload = Map.of(
-                                    "type", "LOADING",
-                                    "message", "3초 후 다음 문제가 전송됩니다."
-                                );
-                                messagingTemplate.convertAndSend("/topic/room/" + inviteCode, loadingPayload);
+                                messagingTemplate.convertAndSend("/topic/room/" + inviteCode, WebSocketEventDto.loading("3초 후 다음 문제가 전송됩니다."));
 
                                 scheduler.schedule(() -> {
                                     synchronized (roomLocks.get(roomId)) {
@@ -428,14 +405,7 @@ public class MultiRoomWebSocketService {
                 emailToName.put(userEmail, user.getName());
             }
 
-            Map<String, Object> leaderboardPayload = Map.of(
-                "type", "LEADERBOARD",
-                "currentLeader", currentLeaderName,
-                "currentLeaderEmail", currentLeaderEmail,
-                "scores", currentScores,
-                "emailToName", emailToName
-            );
-            messagingTemplate.convertAndSend("/topic/room/" + inviteCode, leaderboardPayload);
+            messagingTemplate.convertAndSend("/topic/room/" + inviteCode, invitedRoomEventResDto.leaderboard(currentLeaderName, currentLeaderEmail, currentScores, emailToName));
 
             if (session.tryNextQuestion()) {
                 // 다음 문제로 넘어갈 때 현재 타이머 즉시 중단
@@ -451,17 +421,9 @@ public class MultiRoomWebSocketService {
                             inviteCode, session.getCurrentQuestionIndex(), session.getTotalQuestions());
 
                     // 타이머 중단 알림
-                    Map<String, Object> timerStopPayload = Map.of(
-                        "type", "TIMER_STOP",
-                        "message", "정답! 다음 문제로 이동합니다."
-                    );
-                    messagingTemplate.convertAndSend("/topic/room/" + inviteCode, timerStopPayload);
+                    messagingTemplate.convertAndSend("/topic/room/" + inviteCode, WebSocketEventDto.timerStop());
 
-                    Map<String, Object> loadingPayload = Map.of(
-                        "type", "LOADING",
-                        "message", "3초 후 다음 문제가 전송됩니다."
-                    );
-                    messagingTemplate.convertAndSend("/topic/room/" + inviteCode, loadingPayload);
+                    messagingTemplate.convertAndSend("/topic/room/" + inviteCode, WebSocketEventDto.loading("3초 후 다음 문제가 전송됩니다."));
 
                     scheduler.schedule(() -> {
                         synchronized (roomLocks.get(roomId)) {
