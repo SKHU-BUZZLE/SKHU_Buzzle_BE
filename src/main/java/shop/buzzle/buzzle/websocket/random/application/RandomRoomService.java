@@ -1,28 +1,28 @@
 package shop.buzzle.buzzle.websocket.random.application;
 
-import java.util.LinkedHashMap;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessageSendingOperations;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import shop.buzzle.buzzle.websocket.dto.AnswerResponse;
-import shop.buzzle.buzzle.websocket.random.api.dto.QuestionResponse;
-import shop.buzzle.buzzle.websocket.random.api.dto.RandomRoomInfoResDto;
-import shop.buzzle.buzzle.websocket.random.api.dto.RandomRoomEventResDto;
-import shop.buzzle.buzzle.websocket.random.api.dto.GameEndResponse;
-import shop.buzzle.buzzle.websocket.random.game.application.RandomGameSession;
 import shop.buzzle.buzzle.member.domain.Member;
 import shop.buzzle.buzzle.member.domain.repository.MemberRepository;
 import shop.buzzle.buzzle.member.exception.MemberNotFoundException;
-import shop.buzzle.buzzle.quiz.api.dto.response.QuizResDto;
 import shop.buzzle.buzzle.quiz.api.dto.request.QuizSizeReqDto;
+import shop.buzzle.buzzle.quiz.api.dto.response.QuizResDto;
 import shop.buzzle.buzzle.quiz.application.QuizService;
 import shop.buzzle.buzzle.quiz.domain.QuizCategory;
 import shop.buzzle.buzzle.quiz.domain.QuizScore;
 import shop.buzzle.buzzle.websocket.dto.AnswerRequest;
+import shop.buzzle.buzzle.websocket.dto.AnswerResponse;
 import shop.buzzle.buzzle.websocket.dto.Question;
+import shop.buzzle.buzzle.websocket.dto.WebSocketEventDto;
+import shop.buzzle.buzzle.websocket.random.api.dto.GameEndResponse;
 import shop.buzzle.buzzle.websocket.random.api.dto.LeaderboardResponse;
 import shop.buzzle.buzzle.websocket.random.api.dto.PlayerJoinedResponse;
+import shop.buzzle.buzzle.websocket.random.api.dto.QuestionResponse;
+import shop.buzzle.buzzle.websocket.random.api.dto.RandomRoomEventResDto;
+import shop.buzzle.buzzle.websocket.random.api.dto.RandomRoomInfoResDto;
+import shop.buzzle.buzzle.websocket.random.game.application.RandomGameSession;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -100,11 +100,7 @@ public class RandomRoomService {
                 // 세션이 끝났거나 타이머가 중단되었으면 타이머 중단
                 if (session.isFinished() || !session.isTimerRunning()) return;
 
-                Map<String, Object> timerPayload = Map.of(
-                        "type", "TIMER",
-                        "remainingTime", currentSecond
-                );
-                messagingTemplate.convertAndSend("/topic/game/" + roomId, timerPayload);
+                messagingTemplate.convertAndSend("/topic/game/" + roomId, WebSocketEventDto.timer(currentSecond));
             }, seconds - i, TimeUnit.SECONDS);
 
             timerTasks.add(timerTask);
@@ -114,11 +110,7 @@ public class RandomRoomService {
         ScheduledFuture<?> timeUpTask = scheduler.schedule(() -> {
             if (session.isFinished() || !session.isTimerRunning()) return;
 
-            Map<String, Object> timeUpPayload = Map.of(
-                    "type", "TIME_UP",
-                    "message", "시간이 종료되었습니다!"
-            );
-            messagingTemplate.convertAndSend("/topic/game/" + roomId, timeUpPayload);
+            messagingTemplate.convertAndSend("/topic/game/" + roomId, WebSocketEventDto.timeUp());
 
             // 시간 초과 시 모든 플레이어의 life 감소
             List<String> playerEmails = session.getAllPlayerEmails();
@@ -149,7 +141,7 @@ public class RandomRoomService {
                                 handleGameEnd(roomId, session);
                                 roomLocks.remove(roomId);
                             } else {
-                                broadcastToRoom(roomId, "LOADING", "3초 후 다음 문제가 전송됩니다.");
+                                messagingTemplate.convertAndSend("/topic/game/" + roomId, WebSocketEventDto.loading("3초 후 다음 문제가 전송됩니다."));
                                 scheduler.schedule(() -> {
                                     synchronized (roomLocks.get(roomId)) {
                                         RandomGameSession currentSession = sessionMap.get(roomId);
@@ -248,13 +240,9 @@ public class RandomRoomService {
                     roomLocks.remove(roomId);
                 } else {
                     // 타이머 중단 알림
-                    Map<String, Object> timerStopPayload = Map.of(
-                            "type", "TIMER_STOP",
-                            "message", "정답! 다음 문제로 이동합니다."
-                    );
-                    messagingTemplate.convertAndSend("/topic/game/" + roomId, timerStopPayload);
+                    messagingTemplate.convertAndSend("/topic/game/" + roomId, WebSocketEventDto.timerStop());
 
-                    broadcastToRoom(roomId, "LOADING", "3초 후 다음 문제가 전송됩니다.");
+                    messagingTemplate.convertAndSend("/topic/game/" + roomId, WebSocketEventDto.loading("3초 후 다음 문제가 전송됩니다."));
                     scheduler.schedule(() -> {
                         synchronized (roomLocks.get(roomId)) {
                             RandomGameSession currentSession = sessionMap.get(roomId);
@@ -347,22 +335,17 @@ public class RandomRoomService {
         return rankings;
     }
 
-    public void broadcastToRoom(String roomId, String type, String message) {
-        Map<String, Object> response = new LinkedHashMap<>();
-        response.put("type", type);
-        response.put("message", message);
-
-        messagingTemplate.convertAndSend(
-                "/topic/game/" + roomId,
-                response
-        );
-    }
-
     public void broadcastPlayerJoined(String roomId, PlayerJoinedResponse playerInfo) {
         messagingTemplate.convertAndSend(
                 "/topic/game/" + roomId,
                 playerInfo
         );
+    }
+
+    public void broadcastPlayerLeft(String roomId, String userEmail) {
+        Member member = memberRepository.findByEmail(userEmail).orElseThrow(MemberNotFoundException::new);
+        String name = (member != null) ? member.getName() : userEmail;
+        messagingTemplate.convertAndSend("/topic/game/" + roomId, WebSocketEventDto.playerLeft(userEmail, name));
     }
 
     public void resendCurrentQuestionToUser(String roomId) {

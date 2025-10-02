@@ -120,7 +120,7 @@ public class WSEventListener {
         if (players != null) {
             players.remove(userEmail);
             log.info("🔴 {} 님이 일반방 {} 에서 퇴장 (남은 인원: {})", userEmail, roomId, players.size());
-            wsRoomService.broadcastToRoom(roomId, "PLAYER_LEFT", userEmail + "님이 퇴장했습니다.");
+            wsRoomService.broadcastPlayerLeft(roomId, userEmail);
             if (players.isEmpty()) {
                 roomPlayers.remove(roomId);
                 startedRooms.remove(roomId);

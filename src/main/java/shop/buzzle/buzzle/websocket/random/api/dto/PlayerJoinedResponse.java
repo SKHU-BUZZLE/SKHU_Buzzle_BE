@@ -1,7 +1,9 @@
 package shop.buzzle.buzzle.websocket.random.api.dto;
 
+import shop.buzzle.buzzle.websocket.dto.MessageType;
+
 public record PlayerJoinedResponse(
-        String type,
+        MessageType type,
         String email,
         String name,
         String picture,
@@ -9,7 +11,7 @@ public record PlayerJoinedResponse(
 ) {
     public static PlayerJoinedResponse of(String email, String name, String picture) {
         return new PlayerJoinedResponse(
-                "PLAYER_JOINED",
+                MessageType.PLAYER_JOINED,
                 email,
                 name,
                 picture,
