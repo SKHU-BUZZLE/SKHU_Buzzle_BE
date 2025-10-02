@@ -6,7 +6,6 @@ import shop.buzzle.buzzle.member.domain.Member;
 import java.util.List;
 import java.util.Map;
 
-@JsonInclude(JsonInclude.Include.NON_NULL)
 public record invitedRoomEventResDto(
         String type,
         String message,
