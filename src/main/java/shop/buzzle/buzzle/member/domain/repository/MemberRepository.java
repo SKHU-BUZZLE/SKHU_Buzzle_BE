@@ -16,6 +16,6 @@ public interface MemberRepository extends
 
     @Modifying
     @Transactional
-    @Query("UPDATE Member m SET m.life = 50")
+    @Query("UPDATE Member m SET m.life = 150")
     void resetLife();
 }
