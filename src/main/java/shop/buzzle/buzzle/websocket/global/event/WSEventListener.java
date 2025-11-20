@@ -65,7 +65,7 @@ public class WSEventListener {
         }
     }
 
-    private void handleRegularRoomSubscribe(String roomId, String userEmail) {
+    public void handleRegularRoomSubscribe(String roomId, String userEmail) {
         roomPlayers.putIfAbsent(roomId, ConcurrentHashMap.newKeySet());
         Set<String> players = roomPlayers.get(roomId);
         players.add(userEmail);
