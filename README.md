@@ -2,6 +2,8 @@
 
 ![0-poster](https://github.com/user-attachments/assets/f331007f-7adf-4f86-88d1-e370fbc300e1)
 
+버즐 하러가기 -> https://buzzle.online
+
 ## Buzzle이란?
 ![3-buzzle-2](https://github.com/user-attachments/assets/52d2212a-2552-4b73-88c4-f1e090dbeba0)
 
