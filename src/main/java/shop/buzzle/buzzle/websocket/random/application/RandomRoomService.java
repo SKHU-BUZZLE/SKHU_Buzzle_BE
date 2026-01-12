@@ -97,8 +97,14 @@ public class RandomRoomService {
         for (int i = seconds; i > 0; i--) {
             final int currentSecond = i;
             ScheduledFuture<?> timerTask = scheduler.schedule(() -> {
+                // 세션이 이미 제거되었으면 타이머 중단
+                RandomGameSession currentSession = sessionMap.get(roomId);
+                if (currentSession == null) {
+                    return;
+                }
+
                 // 세션이 끝났거나 타이머가 중단되었으면 타이머 중단
-                if (session.isFinished() || !session.isTimerRunning()) return;
+                if (currentSession.isFinished() || !currentSession.isTimerRunning()) return;
 
                 Map<String, Object> timerPayload = Map.of(
                         "type", "TIMER",
@@ -112,7 +118,13 @@ public class RandomRoomService {
 
         // 시간 종료 스케줄
         ScheduledFuture<?> timeUpTask = scheduler.schedule(() -> {
-            if (session.isFinished() || !session.isTimerRunning()) return;
+            // 세션이 이미 제거되었으면 타이머 중단
+            RandomGameSession currentSession = sessionMap.get(roomId);
+            if (currentSession == null) {
+                return;
+            }
+
+            if (currentSession.isFinished() || !currentSession.isTimerRunning()) return;
 
             Map<String, Object> timeUpPayload = Map.of(
                     "type", "TIME_UP",
@@ -121,7 +133,7 @@ public class RandomRoomService {
             messagingTemplate.convertAndSend("/topic/game/" + roomId, timeUpPayload);
 
             // 시간 초과 시 모든 플레이어의 life 감소
-            List<String> playerEmails = session.getAllPlayerEmails();
+            List<String> playerEmails = currentSession.getAllPlayerEmails();
             if (playerEmails != null) {
                 for (String playerEmail : playerEmails) {
                     Member member = memberRepository.findByEmail(playerEmail)
@@ -134,26 +146,26 @@ public class RandomRoomService {
             }
 
             // 시간 초과 처리
-            if (!session.isFinished()) {
+            if (!currentSession.isFinished()) {
                 roomLocks.putIfAbsent(roomId, new Object());
                 synchronized (roomLocks.get(roomId)) {
                     // 마지막 문제인 경우 바로 게임 종료
-                    if (session.getCurrentQuestionIndex() >= session.getTotalQuestions() - 1) {
-                        session.tryNextQuestion(); // 게임을 finished 상태로 만들기
-                        handleGameEnd(roomId, session);
+                    if (currentSession.getCurrentQuestionIndex() >= currentSession.getTotalQuestions() - 1) {
+                        currentSession.tryNextQuestion(); // 게임을 finished 상태로 만들기
+                        handleGameEnd(roomId, currentSession);
                         roomLocks.remove(roomId);
                     } else {
                         // 마지막 문제가 아닌 경우 다음 문제로
-                        if (session.tryNextQuestion()) {
-                            if (session.isFinished()) {
-                                handleGameEnd(roomId, session);
+                        if (currentSession.tryNextQuestion()) {
+                            if (currentSession.isFinished()) {
+                                handleGameEnd(roomId, currentSession);
                                 roomLocks.remove(roomId);
                             } else {
                                 broadcastToRoom(roomId, "LOADING", "3초 후 다음 문제가 전송됩니다.");
                                 scheduler.schedule(() -> {
                                     synchronized (roomLocks.get(roomId)) {
-                                        RandomGameSession currentSession = sessionMap.get(roomId);
-                                        if (currentSession != null && !currentSession.isFinished()) {
+                                        RandomGameSession interCurrentSession = sessionMap.get(roomId);
+                                        if (interCurrentSession != null && !interCurrentSession.isFinished()) {
                                             sendCurrentQuestion(roomId);
                                         }
                                     }
@@ -296,6 +308,15 @@ public class RandomRoomService {
 
         sessionMap.remove(roomId);
         cancelRoomTimers(roomId);
+    }
+
+    public void forceCleanupRoom(String roomId) {
+        // 타이머 취소 및 제거
+        cancelRoomTimers(roomId);
+        // 세션 제거
+        sessionMap.remove(roomId);
+        // 락 제거
+        roomLocks.remove(roomId);
     }
 
     private List<GameEndResponse.PlayerRanking> createGameEndRanking(Map<String, Integer> scores,
