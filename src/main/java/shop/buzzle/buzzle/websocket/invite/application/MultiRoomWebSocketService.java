@@ -270,8 +270,15 @@ public class MultiRoomWebSocketService {
         for (int i = seconds; i > 0; i--) {
             final int currentSecond = i;
             ScheduledFuture<?> timerTask = scheduler.schedule(() -> {
+                // 세션이 이미 제거되었으면 타이머 중단
+                InviteGameSession currentSession = gameSessions.get(roomId);
+                if (currentSession == null) {
+                    log.debug("타이머 중단: 세션이 제거됨 (roomId: {})", roomId);
+                    return;
+                }
+
                 // 세션이 끝났거나 타이머가 중단되었으면 타이머 중단
-                if (session.isFinished() || !session.isTimerRunning()) return;
+                if (currentSession.isFinished() || !currentSession.isTimerRunning()) return;
 
                 Map<String, Object> timerPayload = Map.of(
                     "type", "TIMER",
@@ -285,8 +292,15 @@ public class MultiRoomWebSocketService {
 
         // 시간 종료 스케줄
         ScheduledFuture<?> timeUpTask = scheduler.schedule(() -> {
+            // 세션이 이미 제거되었으면 타이머 중단
+            InviteGameSession currentSession = gameSessions.get(roomId);
+            if (currentSession == null) {
+                log.debug("타이머 중단: 세션이 제거됨 (roomId: {})", roomId);
+                return;
+            }
+
             // 세션이 끝났거나 타이머가 중단되었으면 시간 종료 처리하지 않음
-            if (session.isFinished() || !session.isTimerRunning()) return;
+            if (currentSession.isFinished() || !currentSession.isTimerRunning()) return;
 
             Map<String, Object> timeUpPayload = Map.of(
                 "type", "TIME_UP",
@@ -310,19 +324,19 @@ public class MultiRoomWebSocketService {
             }
 
             // 시간 초과 처리
-            if (!session.isFinished()) {
+            if (!currentSession.isFinished()) {
                 roomLocks.putIfAbsent(roomId, new Object());
                 synchronized (roomLocks.get(roomId)) {
                     // 마지막 문제인 경우 바로 게임 종료
-                    if (session.getCurrentQuestionIndex() >= session.getTotalQuestions() - 1) {
-                        session.tryNextQuestion(); // 게임을 finished 상태로 만들기
-                        handleMultiRoomGameEnd(roomId, session);
+                    if (currentSession.getCurrentQuestionIndex() >= currentSession.getTotalQuestions() - 1) {
+                        currentSession.tryNextQuestion(); // 게임을 finished 상태로 만들기
+                        handleMultiRoomGameEnd(roomId, currentSession);
                         roomLocks.remove(roomId);
                     } else {
                         // 마지막 문제가 아닌 경우 다음 문제로
-                        if (session.tryNextQuestion()) {
-                            if (session.isFinished()) {
-                                handleMultiRoomGameEnd(roomId, session);
+                        if (currentSession.tryNextQuestion()) {
+                            if (currentSession.isFinished()) {
+                                handleMultiRoomGameEnd(roomId, currentSession);
                                 roomLocks.remove(roomId);
                             } else {
                                 Map<String, Object> loadingPayload = Map.of(
@@ -515,6 +529,32 @@ public class MultiRoomWebSocketService {
         inviteRoomService.disbandRoomAfterGame(roomId);
 
         log.info("💥 [ROOM_DISBANDED] Room: {} disbanded after game completion", inviteCode);
+    }
+
+    public void forceCleanupRoom(String roomId) {
+        log.info("🧹 초대 방 {} 강제 정리 시작 (모든 플레이어 퇴장)", roomId);
+
+        // 타이머 취소 및 제거
+        cancelRoomTimers(roomId);
+
+        // 게임 세션 제거
+        InviteGameSession session = gameSessions.remove(roomId);
+        if (session != null) {
+            log.info("  ↳ 게임 세션 제거됨 (현재 문제: {}/{})",
+                session.getCurrentQuestionIndex() + 1,
+                session.getTotalQuestions());
+        }
+
+        // 락 제거
+        Object lock = roomLocks.remove(roomId);
+        if (lock != null) {
+            log.info("  ↳ 락 제거됨");
+        }
+
+        // 방 제거
+        inviteRoomService.disbandRoomAfterGame(roomId);
+
+        log.info("✅ 초대 방 {} 정리 완료", roomId);
     }
 
     public void resendCurrentQuestionToUser(String roomId) {

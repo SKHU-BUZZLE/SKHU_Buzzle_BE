@@ -15,6 +15,7 @@ import org.springframework.web.socket.messaging.SessionSubscribeEvent;
 
 import shop.buzzle.buzzle.websocket.random.application.RandomRoomService;
 import shop.buzzle.buzzle.websocket.random.api.dto.PlayerJoinedResponse;
+import shop.buzzle.buzzle.websocket.invite.application.MultiRoomWebSocketService;
 import shop.buzzle.buzzle.member.domain.Member;
 import shop.buzzle.buzzle.member.domain.repository.MemberRepository;
 import shop.buzzle.buzzle.member.exception.MemberNotFoundException;
@@ -25,8 +26,10 @@ import shop.buzzle.buzzle.member.exception.MemberNotFoundException;
 public class WSEventListener {
 
     private final RandomRoomService wsRoomService;
+    private final MultiRoomWebSocketService inviteRoomService;
     private final MemberRepository memberRepository;
     private final Map<String, Set<String>> roomPlayers = new ConcurrentHashMap<>();
+    private final Map<String, Set<String>> inviteRoomPlayers = new ConcurrentHashMap<>();
     private final Set<String> startedRooms = ConcurrentHashMap.newKeySet();
 
     @EventListener
@@ -49,7 +52,7 @@ public class WSEventListener {
             if (roomId != null && userEmail != null) {
                 sessionAttributes.put("roomId", roomId);
                 sessionAttributes.put("destination", destination);
-                log.info("🟢 {} 님이 멀티룸 {} 에 구독", userEmail, roomId);
+                handleInviteRoomSubscribe(roomId, userEmail);
             }
             return;
         }
@@ -108,11 +111,18 @@ public class WSEventListener {
 
         if (roomId != null && userEmail != null) {
             if (destination != null && destination.startsWith("/topic/room/")) {
-                log.info("🔴 {} 님이 멀티룸 {} 에서 연결 해제", userEmail, roomId);
+                handleInviteRoomDisconnect(roomId, userEmail);
             } else if (destination != null && destination.startsWith("/topic/game/")) {
                 handleRegularRoomDisconnect(roomId, userEmail);
             }
         }
+    }
+
+    public void handleInviteRoomSubscribe(String roomId, String userEmail) {
+        inviteRoomPlayers.putIfAbsent(roomId, ConcurrentHashMap.newKeySet());
+        Set<String> players = inviteRoomPlayers.get(roomId);
+        players.add(userEmail);
+        log.info("🟢 {} 님이 초대방 {} 에 구독 (현재 인원: {})", userEmail, roomId, players.size());
     }
 
     private void handleRegularRoomDisconnect(String roomId, String userEmail) {
@@ -124,6 +134,23 @@ public class WSEventListener {
             if (players.isEmpty()) {
                 roomPlayers.remove(roomId);
                 startedRooms.remove(roomId);
+
+                // 모든 플레이어가 퇴장하면 게임 세션 및 관련 자원 정리
+                wsRoomService.forceCleanupRoom(roomId);
+            }
+        }
+    }
+
+    private void handleInviteRoomDisconnect(String roomId, String userEmail) {
+        Set<String> players = inviteRoomPlayers.get(roomId);
+        if (players != null) {
+            players.remove(userEmail);
+            log.info("🔴 {} 님이 초대방 {} 에서 연결 해제 (남은 인원: {})", userEmail, roomId, players.size());
+            if (players.isEmpty()) {
+                inviteRoomPlayers.remove(roomId);
+
+                // 모든 플레이어가 퇴장하면 게임 세션 및 관련 자원 정리
+                inviteRoomService.forceCleanupRoom(roomId);
             }
         }
     }
