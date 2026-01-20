@@ -46,19 +46,14 @@ public class MatchService {
         Member member = memberRepository.findByEmail(email)
                 .orElseThrow(MemberNotFoundException::new);
 
-        lock.lock();
-        try {
-            if (!waitingEmails.contains(email)) {
-                waitingEmails.add(email);
-                waitingQueue.add(member);
-                log.info("{}님 매칭 대기 중", email);
-                matchUsers();
-                return "매칭 중";
-            } else {
-                return "이미 매칭 대기 중입니다.";
-            }
-        } finally {
-            lock.unlock();
+        // 락-프리 입장: ConcurrentHashMap.newKeySet().add()는 원자적 연산
+        // 이미 존재하면 false 반환, 없으면 추가하고 true 반환
+        if (waitingEmails.add(email)) {
+            waitingQueue.add(member);  // ConcurrentLinkedQueue도 락-프리
+            log.info("{}님 매칭 대기 중", email);
+            return "매칭 중";
+        } else {
+            return "이미 매칭 대기 중입니다.";
         }
     }
 
