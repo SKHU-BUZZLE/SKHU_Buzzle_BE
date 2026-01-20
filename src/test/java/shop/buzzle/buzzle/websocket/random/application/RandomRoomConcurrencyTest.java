@@ -13,6 +13,7 @@ import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 import shop.buzzle.buzzle.member.domain.Member;
 import shop.buzzle.buzzle.member.domain.repository.MemberRepository;
 import shop.buzzle.buzzle.websocket.global.event.WSEventListener;
+import shop.buzzle.buzzle.websocket.invite.application.MultiRoomWebSocketService;
 
 import java.util.List;
 import java.util.Map;
@@ -32,14 +33,16 @@ class RandomRoomConcurrencyTest {
 
     private WSEventListener wsEventListener;
     private RandomRoomService randomRoomService;
+    private MultiRoomWebSocketService multiRoomWebSocketService;
     private MemberRepository memberRepository;
 
     @BeforeEach
     void setUp() {
         // Mock 객체 생성 (DB 접근 방지)
         randomRoomService = Mockito.mock(RandomRoomService.class);
+        multiRoomWebSocketService = Mockito.mock(MultiRoomWebSocketService.class);
         memberRepository = Mockito.mock(MemberRepository.class);
-        wsEventListener = new WSEventListener(randomRoomService, memberRepository);
+        wsEventListener = new WSEventListener(randomRoomService, multiRoomWebSocketService, memberRepository);
     }
 
     @Test
