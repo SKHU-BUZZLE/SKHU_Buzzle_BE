@@ -1,10 +1,18 @@
 package shop.buzzle.buzzle.websocket.random.application;
 
-import java.util.LinkedHashMap;
 import lombok.RequiredArgsConstructor;
-import org.springframework.messaging.simp.SimpMessageSendingOperations;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import shop.buzzle.buzzle.websocket.common.event.domain.GameEvent.GameType;
+import shop.buzzle.buzzle.websocket.common.event.domain.GameEndedEvent;
+import shop.buzzle.buzzle.websocket.common.event.domain.LeaderboardUpdatedEvent;
+import shop.buzzle.buzzle.websocket.common.event.domain.PlayerJoinedEvent;
+import shop.buzzle.buzzle.websocket.common.event.domain.QuestionSentEvent;
+import shop.buzzle.buzzle.websocket.common.event.domain.RoomNotificationEvent;
+import shop.buzzle.buzzle.websocket.common.event.domain.TimerExpiredEvent;
+import shop.buzzle.buzzle.websocket.common.event.domain.TimerTickEvent;
+import shop.buzzle.buzzle.websocket.common.event.domain.AnswerValidatedEvent;
 import shop.buzzle.buzzle.websocket.dto.AnswerResponse;
 import shop.buzzle.buzzle.websocket.random.api.dto.QuestionResponse;
 import shop.buzzle.buzzle.websocket.random.api.dto.RandomRoomInfoResDto;
@@ -25,6 +33,7 @@ import shop.buzzle.buzzle.websocket.random.api.dto.LeaderboardResponse;
 import shop.buzzle.buzzle.websocket.random.api.dto.PlayerJoinedResponse;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
@@ -35,7 +44,7 @@ public class RandomRoomService {
 
     private final QuizService quizService;
     private final MemberRepository memberRepository;
-    private final SimpMessageSendingOperations messagingTemplate;
+    private final ApplicationEventPublisher eventPublisher;
     private final Map<String, RandomGameSession> sessionMap = new ConcurrentHashMap<>();
     private final Map<String, Object> roomLocks = new ConcurrentHashMap<>();
     private final Map<String, List<ScheduledFuture<?>>> roomTimers = new ConcurrentHashMap<>();
@@ -69,14 +78,14 @@ public class RandomRoomService {
 
         Question q = session.getCurrentQuestion();
 
-        messagingTemplate.convertAndSend(
-                "/topic/game/" + roomId,
-                QuestionResponse.of(
-                        q.text(),
-                        q.options(),
-                        session.getCurrentQuestionIndex()
-                )
-        );
+        eventPublisher.publishEvent(new QuestionSentEvent(
+                roomId,
+                null,
+                GameType.RANDOM,
+                q.text(),
+                q.options(),
+                session.getCurrentQuestionIndex()
+        ));
 
         // 타이머가 이미 실행 중이 아닌 경우에만 시작
         if (session.tryStartTimer()) {
@@ -106,11 +115,7 @@ public class RandomRoomService {
                 // 세션이 끝났거나 타이머가 중단되었으면 타이머 중단
                 if (currentSession.isFinished() || !currentSession.isTimerRunning()) return;
 
-                Map<String, Object> timerPayload = Map.of(
-                        "type", "TIMER",
-                        "remainingTime", currentSecond
-                );
-                messagingTemplate.convertAndSend("/topic/game/" + roomId, timerPayload);
+                eventPublisher.publishEvent(new TimerTickEvent(roomId, null, GameType.RANDOM, currentSecond));
             }, seconds - i, TimeUnit.SECONDS);
 
             timerTasks.add(timerTask);
@@ -126,11 +131,7 @@ public class RandomRoomService {
 
             if (currentSession.isFinished() || !currentSession.isTimerRunning()) return;
 
-            Map<String, Object> timeUpPayload = Map.of(
-                    "type", "TIME_UP",
-                    "message", "시간이 종료되었습니다!"
-            );
-            messagingTemplate.convertAndSend("/topic/game/" + roomId, timeUpPayload);
+            eventPublisher.publishEvent(new TimerExpiredEvent(roomId, null, GameType.RANDOM, currentSession.getCurrentQuestionIndex()));
 
             // 시간 초과 시 모든 플레이어의 life 감소
             List<String> playerEmails = currentSession.getAllPlayerEmails();
@@ -161,7 +162,12 @@ public class RandomRoomService {
                                 handleGameEnd(roomId, currentSession);
                                 roomLocks.remove(roomId);
                             } else {
-                                broadcastToRoom(roomId, "LOADING", "3초 후 다음 문제가 전송됩니다.");
+                                eventPublisher.publishEvent(new RoomNotificationEvent(
+                                        roomId,
+                                        null,
+                                        Map.of("type", "LOADING", "message", "3초 후 다음 문제가 전송됩니다."),
+                                        GameType.RANDOM
+                                ));
                                 scheduler.schedule(() -> {
                                     synchronized (roomLocks.get(roomId)) {
                                         RandomGameSession interCurrentSession = sessionMap.get(roomId);
@@ -213,11 +219,17 @@ public class RandomRoomService {
             String displayName = member.getName();
 
             int correctIndex = Integer.parseInt(current.answerIndex()) - 1;
-            messagingTemplate.convertAndSend(
-                    "/topic/game/" + roomId,
-                    AnswerResponse.of(email, displayName, isCorrect, String.valueOf(correctIndex),
-                            String.valueOf(submittedIndex))
-            );
+
+            boolean wasFirst = false;
+            if (isCorrect) {
+                wasFirst = session.tryAnswerCorrect(email, submittedIndex);
+            }
+
+            eventPublisher.publishEvent(new AnswerValidatedEvent(
+                    roomId, null, GameType.RANDOM, email, displayName,
+                    clientQuestionIndex, submittedIndex, correctIndex, isCorrect,
+                    wasFirst
+            ));
 
             if (!isCorrect) {
                 // 틀린 답안 제출 시 life 감소
@@ -227,8 +239,7 @@ public class RandomRoomService {
                 return;
             }
 
-            boolean accepted = session.tryAnswerCorrect(email, submittedIndex);
-            if (!accepted) return;
+            if (!wasFirst) return;
 
             // 정답 처리 후 현재 리더보드 정보 전송
             String currentLeaderEmail = session.getCurrentLeader();
@@ -244,11 +255,10 @@ public class RandomRoomService {
                 emailToName.put(userEmail, user.getName());
             }
 
-            messagingTemplate.convertAndSend(
-                    "/topic/game/" + roomId,
-                    LeaderboardResponse.of(currentLeaderEmail, currentLeaderMember.getName(), currentScores,
-                            emailToName)
-            );
+            eventPublisher.publishEvent(new LeaderboardUpdatedEvent(
+                    roomId, null, GameType.RANDOM, currentLeaderEmail,
+                    currentLeaderMember.getName(), currentScores, emailToName
+            ));
 
             if (session.tryNextQuestion()) {
                 // 다음 문제로 넘어갈 때 현재 타이머 즉시 중단
@@ -260,13 +270,20 @@ public class RandomRoomService {
                     roomLocks.remove(roomId);
                 } else {
                     // 타이머 중단 알림
-                    Map<String, Object> timerStopPayload = Map.of(
-                            "type", "TIMER_STOP",
-                            "message", "정답! 다음 문제로 이동합니다."
-                    );
-                    messagingTemplate.convertAndSend("/topic/game/" + roomId, timerStopPayload);
+                    eventPublisher.publishEvent(new RoomNotificationEvent(
+                            roomId,
+                            null,
+                            Map.of("type", "TIMER_STOP", "message", "정답! 다음 문제로 이동합니다."),
+                            GameType.RANDOM
+                    ));
 
-                    broadcastToRoom(roomId, "LOADING", "3초 후 다음 문제가 전송됩니다.");
+                    eventPublisher.publishEvent(new RoomNotificationEvent(
+                            roomId,
+                            null,
+                            Map.of("type", "LOADING", "message", "3초 후 다음 문제가 전송됩니다."),
+                            GameType.RANDOM
+                    ));
+                    
                     scheduler.schedule(() -> {
                         synchronized (roomLocks.get(roomId)) {
                             RandomGameSession currentSession = sessionMap.get(roomId);
@@ -300,11 +317,16 @@ public class RandomRoomService {
             member.incrementStreak(QuizScore.MULTI_SCORE.getScore());
         }
 
-        // 랭킹 정보와 함께 게임 종료 메시지 전송
-        messagingTemplate.convertAndSend(
-                "/topic/game/" + roomId,
-                GameEndResponse.withRanking(rankings, hasTie)
-        );
+        // 랭킹 정보와 함께 게임 종료 이벤트 발행
+        GameEndResponse gameEndResponse = GameEndResponse.withRanking(rankings, hasTie);
+        eventPublisher.publishEvent(new GameEndedEvent(
+                roomId,
+                null,
+                GameType.RANDOM,
+                gameEndResponse,
+                winner,
+                hasTie
+        ));
 
         sessionMap.remove(roomId);
         cancelRoomTimers(roomId);
@@ -373,17 +395,18 @@ public class RandomRoomService {
         response.put("type", type);
         response.put("message", message);
 
-        messagingTemplate.convertAndSend(
-                "/topic/game/" + roomId,
-                response
-        );
+        eventPublisher.publishEvent(new RoomNotificationEvent(roomId, null, response, GameType.RANDOM));
     }
 
-    public void broadcastPlayerJoined(String roomId, PlayerJoinedResponse playerInfo) {
-        messagingTemplate.convertAndSend(
-                "/topic/game/" + roomId,
-                playerInfo
-        );
+    public void broadcastPlayerJoined(String roomId, String email, String name, String picture) {
+        eventPublisher.publishEvent(new PlayerJoinedEvent(
+                roomId,
+                null,
+                GameType.RANDOM,
+                email,
+                name,
+                picture
+        ));
     }
 
     public void resendCurrentQuestionToUser(String roomId) {
@@ -392,14 +415,14 @@ public class RandomRoomService {
 
         Question q = session.getCurrentQuestion();
 
-        messagingTemplate.convertAndSend(
-                "/topic/game/" + roomId,
-                QuestionResponse.of(
-                        q.text(),
-                        q.options(),
-                        session.getCurrentQuestionIndex()
-                )
-        );
+        eventPublisher.publishEvent(new QuestionSentEvent(
+                roomId,
+                null,
+                GameType.RANDOM,
+                q.text(),
+                q.options(),
+                session.getCurrentQuestionIndex()
+        ));
     }
 
     private void sendRoomDetailsToPlayers(String roomId, List<String> playerEmails) {
@@ -426,6 +449,6 @@ public class RandomRoomService {
 
         // 두 플레이어 모두에게 JOINED_ROOM 이벤트 전송
         RandomRoomEventResDto joinedRoomEvent = RandomRoomEventResDto.joinedRoom(roomInfo);
-        messagingTemplate.convertAndSend("/topic/game/" + roomId, joinedRoomEvent);
+        eventPublisher.publishEvent(new RoomNotificationEvent(roomId, null, joinedRoomEvent, GameType.RANDOM));
     }
 }

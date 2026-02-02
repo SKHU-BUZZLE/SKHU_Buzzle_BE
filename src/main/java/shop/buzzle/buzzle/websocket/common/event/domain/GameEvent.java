@@ -11,7 +11,9 @@ public sealed interface GameEvent permits
         LeaderboardUpdatedEvent,
         GameEndedEvent,
         PlayerJoinedEvent,
-        PlayerLeftEvent {
+        PlayerLeftEvent,
+        RoomNotificationEvent,
+        NotificationEvent {
 
     String roomId();
     String inviteCode();

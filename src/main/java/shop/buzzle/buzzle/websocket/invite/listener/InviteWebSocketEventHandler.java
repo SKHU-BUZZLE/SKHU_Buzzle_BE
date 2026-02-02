@@ -8,6 +8,7 @@ import shop.buzzle.buzzle.websocket.common.event.domain.*;
 import shop.buzzle.buzzle.websocket.common.event.domain.GameEvent.GameType;
 import shop.buzzle.buzzle.websocket.common.messaging.WebSocketMessageDispatcher;
 import shop.buzzle.buzzle.websocket.dto.AnswerResponse;
+import shop.buzzle.buzzle.websocket.invite.api.dto.response.GameEndResDto;
 import shop.buzzle.buzzle.websocket.invite.api.dto.response.invitedRoomEventResDto;
 
 import java.util.Map;
@@ -120,8 +121,11 @@ public class InviteWebSocketEventHandler {
         log.info("[EVENT_HANDLER] GameEnded - Room: {}, Winner: {}, Tie: {}",
                 event.inviteCode(), event.winnerEmail(), event.hasTie());
 
-        invitedRoomEventResDto response = invitedRoomEventResDto.gameEndWithRanking(event.gameEndData());
-        dispatcher.sendToRoom(event.inviteCode(), response);
+        if (event.gameEndData() instanceof GameEndResDto.GameEndData) {
+            GameEndResDto.GameEndData gameEndData = (GameEndResDto.GameEndData) event.gameEndData();
+            invitedRoomEventResDto response = invitedRoomEventResDto.gameEndWithRanking(gameEndData);
+            dispatcher.sendToRoom(event.inviteCode(), response);
+        }
     }
 
     @EventListener
@@ -163,5 +167,24 @@ public class InviteWebSocketEventHandler {
             );
             dispatcher.sendToRoom(event.inviteCode(), payload);
         }
+    }
+
+    @EventListener
+    public void onNotification(NotificationEvent event) {
+        if (event.gameType() != GameType.INVITE) return;
+
+        log.info("[EVENT_HANDLER] Notification - User: {}, Destination: {}",
+                event.userEmail(), event.destination());
+
+        dispatcher.sendToUser(event.userEmail(), event.destination(), event.payload());
+    }
+
+    @EventListener
+    public void onRoomNotification(RoomNotificationEvent event) {
+        if (event.gameType() != GameType.INVITE) return;
+
+        log.info("[EVENT_HANDLER] RoomNotification - Room: {}", event.inviteCode());
+
+        dispatcher.sendToRoom(event.inviteCode(), event.payload());
     }
 }
