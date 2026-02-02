@@ -11,7 +11,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import shop.buzzle.buzzle.global.dto.PageInfoResDto;
-import shop.buzzle.buzzle.member.api.dto.response.MemberInfoListDto;
 import shop.buzzle.buzzle.member.api.dto.response.MemberInfoResDto;
 import shop.buzzle.buzzle.member.api.dto.response.MemberLifeResDto;
 import shop.buzzle.buzzle.member.api.dto.response.RankingResDto;
