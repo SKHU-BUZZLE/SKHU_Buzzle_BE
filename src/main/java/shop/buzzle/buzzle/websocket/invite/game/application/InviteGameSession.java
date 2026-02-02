@@ -108,4 +108,61 @@ public class InviteGameSession {
     public int getTotalQuestions() {
         return questions.size();
     }
+
+    /**
+     * 현재 문제의 정답 인덱스 반환 (0-based)
+     * @return 정답 인덱스, 문제가 없으면 -1
+     */
+    public int getCorrectIndex() {
+        Question current = getCurrentQuestion();
+        if (current == null) return -1;
+        return Integer.parseInt(current.answerIndex()) - 1;
+    }
+
+    /**
+     * 답변 처리 - Value Object 반환 버전 (테스트 용이성 확보)
+     * 기존 tryAnswerCorrect와 달리 side-effect 없이 결과만 반환합니다.
+     *
+     * @param playerEmail 플레이어 이메일
+     * @param selectedIndex 선택한 답변 인덱스 (0-based)
+     * @return 답변 처리 결과
+     */
+    public AnswerResult processAnswer(String playerEmail, int selectedIndex) {
+        // 게임이 이미 종료됨
+        if (finished) {
+            return AnswerResult.rejected("게임이 이미 종료되었습니다.");
+        }
+
+        // 이미 이번 문제에 정답자가 있음
+        if (correctAnswered.get()) {
+            return AnswerResult.rejected("이미 이번 문제에 정답자가 있습니다.");
+        }
+
+        // 유효하지 않은 플레이어
+        if (!playerEmails.contains(playerEmail)) {
+            return AnswerResult.rejected("유효하지 않은 플레이어입니다.");
+        }
+
+        Question current = getCurrentQuestion();
+        if (current == null) {
+            return AnswerResult.rejected("현재 문제가 없습니다.");
+        }
+
+        int correctIndex = getCorrectIndex();
+        boolean isCorrect = current.isCorrectIndex(selectedIndex);
+
+        // 오답인 경우
+        if (!isCorrect) {
+            return AnswerResult.incorrect(playerEmail, selectedIndex, correctIndex);
+        }
+
+        // 정답인 경우 - 첫 번째 정답인지 확인 (CAS 연산)
+        if (correctAnswered.compareAndSet(false, true)) {
+            addCorrectAnswer(playerEmail);
+            return AnswerResult.correct(playerEmail, selectedIndex, correctIndex, true);
+        }
+
+        // 정답이지만 이미 다른 사람이 먼저 정답을 제출함
+        return AnswerResult.correct(playerEmail, selectedIndex, correctIndex, false);
+    }
 }

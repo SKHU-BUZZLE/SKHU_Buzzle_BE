@@ -2,6 +2,7 @@ package shop.buzzle.buzzle.websocket.invite.application;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessageSendingOperations;
@@ -10,6 +11,8 @@ import org.springframework.transaction.annotation.Transactional;
 import shop.buzzle.buzzle.member.domain.Member;
 import shop.buzzle.buzzle.member.domain.repository.MemberRepository;
 import shop.buzzle.buzzle.member.exception.MemberNotFoundException;
+import shop.buzzle.buzzle.websocket.common.event.domain.*;
+import shop.buzzle.buzzle.websocket.common.event.domain.GameEvent.GameType;
 import shop.buzzle.buzzle.websocket.invite.api.dto.request.InvitedRoomJoinReqDto;
 import shop.buzzle.buzzle.websocket.invite.api.dto.response.invitedRoomEventResDto;
 import shop.buzzle.buzzle.websocket.invite.api.dto.response.GameEndResDto;
@@ -23,13 +26,14 @@ import shop.buzzle.buzzle.quiz.domain.QuizScore;
 import shop.buzzle.buzzle.websocket.dto.AnswerRequest;
 import shop.buzzle.buzzle.websocket.dto.Question;
 import shop.buzzle.buzzle.websocket.dto.AnswerResponse;
+import shop.buzzle.buzzle.websocket.invite.game.application.AnswerResult;
+import shop.buzzle.buzzle.websocket.invite.game.application.InviteGameSession;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
-import shop.buzzle.buzzle.websocket.invite.game.application.InviteGameSession;
 
 @Service
 @RequiredArgsConstructor
@@ -40,6 +44,7 @@ public class MultiRoomWebSocketService {
     private final QuizService quizService;
     private final MemberRepository memberRepository;
     private final SimpMessageSendingOperations messagingTemplate;
+    private final ApplicationEventPublisher eventPublisher;
 
     private final Map<String, InviteGameSession> gameSessions = new ConcurrentHashMap<>();
     private final Map<String, Object> roomLocks = new ConcurrentHashMap<>();
@@ -217,6 +222,13 @@ public class MultiRoomWebSocketService {
 
         gameSessions.put(roomId, session);
 
+        // [이벤트 발행] 게임 시작 이벤트
+        eventPublisher.publishEvent(new GameStartedEvent(
+                roomId, inviteCode, GameType.INVITE,
+                room.getPlayerEmails(), session.getTotalQuestions(), room.getCategory()
+        ));
+
+        // [레거시 - 점진적 제거 예정] 기존 직접 메시지 전송
         Map<String, Object> gameStartPayload = Map.of(
             "type", "GAME_START",
             "totalQuestions", session.getTotalQuestions(),
@@ -242,6 +254,13 @@ public class MultiRoomWebSocketService {
         Question q = session.getCurrentQuestion();
         if (q == null) return;
 
+        // [이벤트 발행] 문제 전송 이벤트
+        eventPublisher.publishEvent(new QuestionSentEvent(
+                roomId, inviteCode, GameType.INVITE,
+                q.text(), q.options(), session.getCurrentQuestionIndex()
+        ));
+
+        // [레거시 - 점진적 제거 예정] 기존 직접 메시지 전송
         Map<String, Object> payload = Map.of(
             "type", "QUESTION",
             "question", q.text(),
@@ -280,6 +299,10 @@ public class MultiRoomWebSocketService {
                 // 세션이 끝났거나 타이머가 중단되었으면 타이머 중단
                 if (currentSession.isFinished() || !currentSession.isTimerRunning()) return;
 
+                // [이벤트 발행] 타이머 틱 이벤트
+                eventPublisher.publishEvent(new TimerTickEvent(roomId, inviteCode, GameType.INVITE, currentSecond));
+
+                // [레거시 - 점진적 제거 예정] 기존 직접 메시지 전송
                 Map<String, Object> timerPayload = Map.of(
                     "type", "TIMER",
                     "remainingTime", currentSecond
@@ -302,6 +325,12 @@ public class MultiRoomWebSocketService {
             // 세션이 끝났거나 타이머가 중단되었으면 시간 종료 처리하지 않음
             if (currentSession.isFinished() || !currentSession.isTimerRunning()) return;
 
+            // [이벤트 발행] 타이머 만료 이벤트
+            eventPublisher.publishEvent(new TimerExpiredEvent(
+                    roomId, inviteCode, GameType.INVITE, currentSession.getCurrentQuestionIndex()
+            ));
+
+            // [레거시 - 점진적 제거 예정] 기존 직접 메시지 전송
             Map<String, Object> timeUpPayload = Map.of(
                 "type", "TIME_UP",
                 "message", "시간이 종료되었습니다!"
@@ -401,7 +430,17 @@ public class MultiRoomWebSocketService {
             log.info("📝 [ANSWER_RECEIVED] Player: {}, Room: {}, Question: {}, Answer: {}, Correct: {}",
                     displayName, inviteCode, answerRequest.questionIndex() + 1, answerRequest.index() + 1, isCorrect);
 
-            // ANSWER_RESULT 이벤트 전송
+            // processAnswer를 사용하여 결과 얻기 (POJO 테스트 가능)
+            AnswerResult result = session.processAnswer(email, answerRequest.index());
+
+            // [이벤트 발행] 답변 검증 이벤트
+            eventPublisher.publishEvent(new AnswerValidatedEvent(
+                    roomId, inviteCode, GameType.INVITE,
+                    email, displayName, answerRequest.questionIndex(),
+                    answerRequest.index(), correctIndex, isCorrect, result.wasFirst()
+            ));
+
+            // [레거시 - 점진적 제거 예정] 기존 직접 메시지 전송
             AnswerResponse answerResponse = AnswerResponse.of(
                 email,
                 displayName,
@@ -419,8 +458,8 @@ public class MultiRoomWebSocketService {
                 return;
             }
 
-            boolean accepted = session.tryAnswerCorrect(email, answerRequest.index());
-            if (!accepted) {
+            // processAnswer에서 이미 점수 처리됨, 중복 방지를 위해 wasFirst 체크
+            if (!result.wasFirst()) {
                 log.warn("⚠️ [DUPLICATE_ANSWER] Player: {} already answered correctly for this question", displayName);
                 return;
             }
@@ -442,6 +481,13 @@ public class MultiRoomWebSocketService {
                 emailToName.put(userEmail, user.getName());
             }
 
+            // [이벤트 발행] 리더보드 갱신 이벤트
+            eventPublisher.publishEvent(new LeaderboardUpdatedEvent(
+                    roomId, inviteCode, GameType.INVITE,
+                    currentLeaderEmail, currentLeaderName, currentScores, emailToName
+            ));
+
+            // [레거시 - 점진적 제거 예정] 기존 직접 메시지 전송
             Map<String, Object> leaderboardPayload = Map.of(
                 "type", "LEADERBOARD",
                 "currentLeader", currentLeaderName,
@@ -515,7 +561,13 @@ public class MultiRoomWebSocketService {
             log.info("🏆 [GAME_WINNER] Room: {}, Winner: {}", inviteCode, member.getName());
         }
 
-        // 랭킹 정보와 함께 게임 종료 메시지 전송
+        // [이벤트 발행] 게임 종료 이벤트
+        eventPublisher.publishEvent(new GameEndedEvent(
+                roomId, inviteCode, GameType.INVITE,
+                gameEndData, winner, gameEndData.hasTie()
+        ));
+
+        // [레거시 - 점진적 제거 예정] 기존 직접 메시지 전송
         invitedRoomEventResDto gameEndResponse = invitedRoomEventResDto.gameEndWithRanking(gameEndData);
         messagingTemplate.convertAndSend("/topic/room/" + inviteCode, gameEndResponse);
 
