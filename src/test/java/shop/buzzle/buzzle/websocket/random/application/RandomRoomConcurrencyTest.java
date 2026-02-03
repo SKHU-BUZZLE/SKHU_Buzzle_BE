@@ -5,20 +5,15 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
-import org.springframework.messaging.Message;
-import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
-import org.springframework.messaging.support.GenericMessage;
-import org.springframework.web.socket.CloseStatus;
-import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 import shop.buzzle.buzzle.member.domain.Member;
 import shop.buzzle.buzzle.member.domain.repository.MemberRepository;
-import shop.buzzle.buzzle.websocket.global.event.WSEventListener;
+import shop.buzzle.buzzle.websocket.common.event.domain.UserDisconnectedEvent;
+import shop.buzzle.buzzle.websocket.common.event.domain.UserSubscribedEvent;
 import shop.buzzle.buzzle.websocket.invite.application.MultiRoomWebSocketService;
+import shop.buzzle.buzzle.websocket.session.WebSocketSessionService;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -31,7 +26,7 @@ import static org.mockito.Mockito.*;
 @DisplayName("랜덤 매칭 웹소켓 동시성 및 이벤트 테스트")
 class RandomRoomConcurrencyTest {
 
-    private WSEventListener wsEventListener;
+    private WebSocketSessionService webSocketSessionService;
     private RandomRoomService randomRoomService;
     private MultiRoomWebSocketService multiRoomWebSocketService;
     private MemberRepository memberRepository;
@@ -42,7 +37,7 @@ class RandomRoomConcurrencyTest {
         randomRoomService = Mockito.mock(RandomRoomService.class);
         multiRoomWebSocketService = Mockito.mock(MultiRoomWebSocketService.class);
         memberRepository = Mockito.mock(MemberRepository.class);
-        wsEventListener = new WSEventListener(randomRoomService, multiRoomWebSocketService, memberRepository);
+        webSocketSessionService = new WebSocketSessionService(randomRoomService, multiRoomWebSocketService, memberRepository);
     }
 
     @Test
@@ -60,12 +55,15 @@ class RandomRoomConcurrencyTest {
         });
 
         // when
-        // 2명의 사용자가 동시에 같은 방의 참가 이벤트를 발생시킴
+        // 2명의 사용자가 동시에 같은 방의 구독 이벤트를 발생시킴
         for (int i = 0; i < numberOfThreads; i++) {
             final String userEmail = "player" + i + "@test.com";
             executorService.submit(() -> {
                 try {
-                    wsEventListener.handleRegularRoomSubscribe(roomId, userEmail);
+                    UserSubscribedEvent event = new UserSubscribedEvent(
+                            userEmail, roomId, "/topic/game/" + roomId, "session-" + userEmail
+                    );
+                    webSocketSessionService.handleSubscription(event);
                 } finally {
                     latch.countDown();
                 }
@@ -101,24 +99,19 @@ class RandomRoomConcurrencyTest {
 
         when(memberRepository.findByEmail(userEmail1)).thenReturn(Optional.of(Member.builder().email(userEmail1).name("Player1").build()));
         when(memberRepository.findByEmail(userEmail2)).thenReturn(Optional.of(Member.builder().email(userEmail2).name("Player2").build()));
-        wsEventListener.handleRegularRoomSubscribe(roomId, userEmail1);
-        wsEventListener.handleRegularRoomSubscribe(roomId, userEmail2);
 
-        SimpMessageHeaderAccessor headerAccessor = SimpMessageHeaderAccessor.create();
-        headerAccessor.setSessionId("session-1");
+        // 두 플레이어가 구독
+        webSocketSessionService.handleSubscription(
+                new UserSubscribedEvent(userEmail1, roomId, "/topic/game/" + roomId, "session-1")
+        );
+        webSocketSessionService.handleSubscription(
+                new UserSubscribedEvent(userEmail2, roomId, "/topic/game/" + roomId, "session-2")
+        );
 
-        headerAccessor.setSessionAttributes(new ConcurrentHashMap<>());
-        Map<String, Object> sessionAttributes = headerAccessor.getSessionAttributes();
-        sessionAttributes.put("userEmail", userEmail1);
-        sessionAttributes.put("roomId", roomId);
-        sessionAttributes.put("destination", "/topic/game/" + roomId);
-
-        Message<byte[]> message = new GenericMessage<>(new byte[0], headerAccessor.getMessageHeaders());
-
-        SessionDisconnectEvent disconnectEvent = new SessionDisconnectEvent("test-source", message, "session-1", CloseStatus.NORMAL);
-
-        // when
-        wsEventListener.handleWebSocketDisconnectListener(disconnectEvent);
+        // when - player1이 연결 해제
+        webSocketSessionService.handleDisconnect(
+                new UserDisconnectedEvent(userEmail1, roomId, "/topic/game/" + roomId, "session-1")
+        );
 
         // then
         ArgumentCaptor<String> typeCaptor = ArgumentCaptor.forClass(String.class);
@@ -157,7 +150,10 @@ class RandomRoomConcurrencyTest {
             final String roomId = (i < 2) ? "room-A" : "room-B";
             executorService.submit(() -> {
                 try {
-                    wsEventListener.handleRegularRoomSubscribe(roomId, userEmail);
+                    UserSubscribedEvent event = new UserSubscribedEvent(
+                            userEmail, roomId, "/topic/game/" + roomId, "session-" + userEmail
+                    );
+                    webSocketSessionService.handleSubscription(event);
                 } finally {
                     latch.countDown();
                 }

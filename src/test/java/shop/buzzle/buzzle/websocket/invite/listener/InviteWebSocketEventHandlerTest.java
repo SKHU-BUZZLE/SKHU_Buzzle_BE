@@ -179,8 +179,8 @@ class InviteWebSocketEventHandlerTest {
             verify(dispatcher).sendToRoom(eq(INVITE_CODE), responseCaptor.capture());
 
             AnswerResponse response = responseCaptor.getValue();
-            assertThat(response.email()).isEqualTo("player1@test.com");
-            assertThat(response.name()).isEqualTo("Player1");
+            assertThat(response.userEmail()).isEqualTo("player1@test.com");
+            assertThat(response.userName()).isEqualTo("Player1");
             assertThat(response.correct()).isFalse();
         }
     }
@@ -312,7 +312,7 @@ class InviteWebSocketEventHandlerTest {
 
             Map<String, Object> payload = payloadCaptor.getValue();
             assertThat(payload.get("type")).isEqualTo("ROOM_DISBANDED");
-            assertThat(payload.get("message")).contains("방장이 퇴장");
+            assertThat((String) payload.get("message")).contains("방장이 퇴장");
         }
     }
 

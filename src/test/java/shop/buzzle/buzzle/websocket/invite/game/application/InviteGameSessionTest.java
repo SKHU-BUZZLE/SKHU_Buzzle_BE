@@ -58,18 +58,17 @@ class InviteGameSessionTest {
         }
 
         @Test
-        @DisplayName("두 번째 정답은 wasFirst=false로 처리된다")
-        void secondCorrectAnswer_shouldNotBeFirst() {
+        @DisplayName("이미 정답자가 있으면 다른 답변은 거부된다")
+        void secondCorrectAnswer_shouldBeRejected() {
             // given
             session.processAnswer(PLAYER_1, 0);  // 첫 번째 정답
 
             // when
-            AnswerResult result = session.processAnswer(PLAYER_2, 0);  // 두 번째 정답
+            AnswerResult result = session.processAnswer(PLAYER_2, 0);  // 두 번째 시도
 
             // then
-            assertThat(result.accepted()).isTrue();
-            assertThat(result.correct()).isTrue();
-            assertThat(result.wasFirst()).isFalse();
+            assertThat(result.accepted()).isFalse();
+            assertThat(result.rejectionReason()).contains("이미 이번 문제에 정답자가 있습니다");
         }
 
         @Test
@@ -116,11 +115,17 @@ class InviteGameSessionTest {
         @Test
         @DisplayName("shouldDecrementLife는 오답에서만 true를 반환한다")
         void shouldDecrementLife_onlyForIncorrect() {
-            AnswerResult correct = session.processAnswer(PLAYER_1, 0);
-            AnswerResult incorrect = session.processAnswer(PLAYER_2, 1);
+            // 첫 번째 플레이어가 오답 제출
+            AnswerResult incorrect = session.processAnswer(PLAYER_1, 1);  // 오답 (정답은 0)
 
-            assertThat(correct.shouldDecrementLife()).isFalse();
+            // 다음 문제로 넘어감
+            session.tryNextQuestion();
+
+            // 두 번째 문제에서 정답 제출
+            AnswerResult correct = session.processAnswer(PLAYER_2, 1);  // 두 번째 문제 정답
+
             assertThat(incorrect.shouldDecrementLife()).isTrue();
+            assertThat(correct.shouldDecrementLife()).isFalse();
         }
     }
 
