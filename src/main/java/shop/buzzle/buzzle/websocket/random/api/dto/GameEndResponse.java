@@ -1,9 +1,11 @@
 package shop.buzzle.buzzle.websocket.random.api.dto;
 
+import shop.buzzle.buzzle.websocket.dto.MessageType;
+
 import java.util.List;
 
 public record GameEndResponse(
-        String type,
+        MessageType type,
         String message,
         GameEndData data
 ) {
@@ -18,7 +20,7 @@ public record GameEndResponse(
         }
 
         return new GameEndResponse(
-                "GAME_END_RANKING",
+                MessageType.GAME_END_RANKING,
                 message,
                 new GameEndData(rankings, hasTie)
         );
